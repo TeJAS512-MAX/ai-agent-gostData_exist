@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "orchestrate-ai-agent"
+version = "1.0.0"
+description = "Autonomous AI Agent Architecture for HackerRank Orchestrate Hackathon"
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [
+    { name = "HackerRank Builder", email = "builder@orchestrate.local" }
+]
+
+dependencies = [
+    "langgraph>=1.2.16",
+    "langchain>=1.4.7",
+    "litellm>=1.106.2",
+    "pydantic>=2.14.1",
+    "pandas>=3.1.0",
+    "rich>=14.3.4",
+    "python-dotenv>=1.2.4",
+    "rank-bm25>=0.2.2",
+    "sentence-transformers>=6.2.0",
+    "chromadb>=1.5.9",
+    "instructor>=1.17.0"
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W"]
+

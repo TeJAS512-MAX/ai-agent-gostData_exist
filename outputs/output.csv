@@ -1,0 +1,7 @@
+ticket_id,action,priority,category,citation_id,response_summary
+TCK-101,replied,medium,general,NONE,Standard inquiry resolved with knowledge base documentation.
+TCK-102,escalated,high,billing,NONE,Billing dispute requiring tier 3 authorization per refund policy.
+TCK-103,escalated,critical,technical,NONE,System outage or severe incident detected.
+TCK-104,blocked,critical,security_violation,NONE,Prompt injection flagged: Adversarial prompt injection pattern detected: 'Ignore all previous rules'
+TCK-105,replied,medium,general,NONE,Standard inquiry resolved with knowledge base documentation.
+TCK-106,escalated,high,billing,NONE,Billing dispute requiring tier 3 authorization per refund policy.
