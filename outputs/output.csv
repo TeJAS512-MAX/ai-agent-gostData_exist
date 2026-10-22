@@ -2,6 +2,9 @@ ticket_id,action,priority,category,citation_id,response_summary
 TCK-101,replied,medium,general,NONE,Standard inquiry resolved with knowledge base documentation.
 TCK-102,escalated,high,billing,NONE,Billing dispute requiring tier 3 authorization per refund policy.
 TCK-103,escalated,critical,technical,NONE,System outage or severe incident detected.
-TCK-104,blocked,critical,security_violation,NONE,Prompt injection flagged: Adversarial prompt injection pattern detected: 'Ignore all previous rules'
+TCK-104,blocked,critical,security_violation,NONE,Threat Neutralized [CRITICAL]: Security Violation: Detected attack vectors [DIRECT_OVERRIDE] (Audit ID: aa3c8a1c8f0c5fd2)
 TCK-105,replied,medium,general,NONE,Standard inquiry resolved with knowledge base documentation.
 TCK-106,escalated,high,billing,NONE,Billing dispute requiring tier 3 authorization per refund policy.
+TCK-107,blocked,critical,security_violation,NONE,"Threat Neutralized [CRITICAL]: Security Violation: Detected attack vectors [DEVELOPER_MODE_SPOOFING, PROMPT_LEAKAGE] (Audit ID: fbefb6dbbe06507c)"
+TCK-108,blocked,critical,security_violation,NONE,Threat Neutralized [MEDIUM]: Security Violation: Detected attack vectors [DIRECT_OVERRIDE_BASE64_OBFUSCATED] (Audit ID: 831060500d7d4389)
+TCK-109,replied,medium,general,NONE,Standard inquiry resolved with knowledge base documentation.

@@ -14,10 +14,21 @@ class PriorityLevel(str, Enum):
     HIGH = "high"
     CRITICAL = "critical"
 
+class ThreatLevel(str, Enum):
+    SAFE = "safe"
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+    CRITICAL = "critical"
+
 class SecurityAssessment(BaseModel):
-    is_safe: bool = Field(default=True, description="Whether prompt is free of adversarial injection")
-    flagged_reason: Optional[str] = Field(default=None, description="Reason if injection was detected")
-    sanitized_input: str = Field(default="", description="Sanitized clean content")
+    is_safe: bool = Field(default=True, description="Whether prompt is safe to process")
+    threat_level: ThreatLevel = Field(default=ThreatLevel.SAFE, description="Threat level severity")
+    attack_vectors: List[str] = Field(default_factory=list, description="Specific injection/attack vectors flagged")
+    pii_detected: List[str] = Field(default_factory=list, description="PII/credential types redacted")
+    flagged_reason: Optional[str] = Field(default=None, description="Detailed explanation of safety violation")
+    sanitized_input: str = Field(default="", description="Sanitized, deobfuscated, and redacted payload")
+    audit_hash: str = Field(default="", description="SHA-256 audit hash of sanitized input")
 
 class RetrievalCitation(BaseModel):
     document_id: str = Field(description="Policy or doc identifier")
@@ -43,6 +54,7 @@ class AgentDecision(BaseModel):
     citations: List[RetrievalCitation] = Field(default_factory=list, description="Policy citations")
     requires_human: bool = Field(default=False)
     injection_detected: bool = Field(default=False)
+    security_metadata: Optional[SecurityAssessment] = Field(default=None, description="Security audit metadata")
 
 class OutputRow(BaseModel):
     """Strict schema required for HackerRank output.csv evaluation."""
@@ -52,4 +64,3 @@ class OutputRow(BaseModel):
     category: str
     citation_id: str
     response_summary: str
-
