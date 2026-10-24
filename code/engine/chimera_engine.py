@@ -333,3 +333,4 @@ class ImmuneMemoryAutomaton:
         )
         self.add_antibody(ab)
         return ab
+

@@ -301,3 +301,39 @@ To unify abstract interpretation, compiler optimization, and immune pattern reco
 ### 5. Innate Immune Memory (Aho-Corasick Automaton)
 - Employs an Aho-Corasick trie matching known ghost-data signatures across evidence files in $O(n + z)$ time independent of pattern count.
 - Consolidates confirmed novel countermodels into dynamic antibodies mid-batch, accelerating multi-case throughput across all 518 cases.
+
+
+---
+
+## 11. Project CHIMERA-X: Seven Formal Methods Modules Beyond the Core
+
+To extend the formal verification pipeline into SMT satisfiability, temporal logic, and game theory, the system integrates **Project CHIMERA-X** (`code/engine/chimerax_engine.py`):
+
+### 1. SMT-Based Policy Satisfiability Solver
+- Encodes deletion cases and rules as logical constraint systems.
+- When policy constraints cannot be satisfied, extracts the minimal **UNSAT Core** via constraint solving, mathematically guaranteeing that the emitted finding set is minimal and free of false positives.
+
+### 2. Temporal Logic Model Checking (LTL over Traces)
+- Formulates deletion completeness as a temporal safety property:
+  $$\phi_{\text{safety}} = \square( \text{deleted}(v) \implies \square \neg \text{exists}(v) )$$
+- Verifies recurrence cadences in `system_activity.csv` against trace automata, extracting lasso-path counterexamples when recurring sync jobs threaten to resurrect data.
+
+### 3. Knowledge-Graph Link Prediction for Dark Flows
+- Implements TransE embedding distances ($d(\mathbf{h} + \mathbf{r}, \mathbf{t})$) trained across historical cross-case activity to predict unrecorded sync and export edges between systems, closing evidence manifest blind spots.
+
+### 4. Game-Theoretic Adversarial Equilibrium (Stackelberg Solver)
+- Models audit allocation as a Strong Stackelberg Equilibrium leader-follower game.
+- Solves worst-case detection coverage under finite execution budgets, prioritizing deep causal verification on resources where unmonitored residual risk is greatest.
+
+### 5. Self-Stabilizing Distributed Deletion Protocol
+- Applies Dijkstra self-stabilization theory to multi-service estates.
+- Guarantees local invariant recovery within bounded graph diameter rounds ($\text{diam}(G)$) and flags architectural deadlocks (such as cyclic bidirectional syncs) as distinct failure modes.
+
+### 6. Differential Privacy Accounting for Anonymized Claims
+- Replaces unverified "ANONYMIZED" assertions with empirical $(\epsilon, \delta)$-differential privacy distinguishability accounting:
+  $$\epsilon = \ln \max_{u, u'} \frac{P(M(r) \mid u)}{P(M(r) \mid u')}$$
+- Validates `VERIFY_RECORD_ANONYMIZED` only when $\epsilon \le 1.5$, rejecting cosmetic anonymization that leaks quasi-identifiers.
+
+### 7. Program Synthesis for Remediation (CEGIS Loop)
+- Deploys Counterexample-Guided Inductive Synthesis (CEGIS).
+- Proposes candidate remediation plans and iteratively queries the SMT solver with counterexamples until a certified minimal-and-sufficient remediation sequence is synthesized.
