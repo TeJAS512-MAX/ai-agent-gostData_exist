@@ -448,6 +448,147 @@ def load_downloaded_problem_datasets(download_dir: Optional[str] = None) -> List
     return items
 
 
+
+def load_evidence_knowledge_dataset(dataset_dir: str = DATASET_DIR) -> List[Dict]:
+    """
+    Ingests all multimodal domain information from the competition evidence folder:
+      1. PDF legal hold & compliance documents (documents/*.pdf)
+      2. SQL database snapshots & support records (databases/*.sql)
+      3. OCR text from system console screenshots (images_ocr_cache.json)
+      4. System activity microservice logs (system_activity.csv)
+      5. Statutory deletion rules (deletion_rules.csv)
+      6. JSON snapshot bundles & handover logs (records/*.json, records/*.txt)
+      7. Application trace logs (logs/*.log)
+    """
+    import glob
+    items = []
+    evidence_dir = os.path.join(dataset_dir, "evidence")
+    if not os.path.exists(evidence_dir):
+        # Fallback to hackerrank_repo if present
+        cand = os.path.join(ROOT, "hackerrank_repo", "dataset", "evidence")
+        if os.path.exists(cand):
+            evidence_dir = cand
+        else:
+            return items
+
+    # 1. Statutory & Legal PDF Documents
+    try:
+        import pypdf
+        for pf in glob.glob(os.path.join(evidence_dir, "documents", "*.pdf")):
+            fname = os.path.basename(pf)
+            reader = pypdf.PdfReader(pf)
+            full_text = "\n".join([page.extract_text() or "" for page in reader.pages])
+            lines = [l.strip() for l in full_text.split("\n") if len(l.strip()) > 20]
+            for l in lines:
+                if any(k in l.lower() for k in ["tax", "retention", "dispute", "hold", "statute", "register"]):
+                    items.append({"text": l, "label": 0, "mode": 2, "dataset_source": f"Dataset_K_Evidence_PDF_{fname}"})
+                elif any(k in l.lower() for k in ["correction", "address", "update"]):
+                    items.append({"text": l, "label": 0, "mode": 1, "dataset_source": f"Dataset_K_Evidence_PDF_{fname}"})
+                elif any(k in l.lower() for k in ["delete", "erasure", "close", "purge"]):
+                    items.append({"text": l, "label": 1, "mode": 2, "dataset_source": f"Dataset_K_Evidence_PDF_{fname}"})
+    except Exception as exc:
+        logger.warning("PDF evidence extraction skipped: %s", exc)
+
+    # 2. SQL Database Support Messages & Schema Insights
+    for sf in glob.glob(os.path.join(evidence_dir, "databases", "*.sql")):
+        fname = os.path.basename(sf)
+        try:
+            with open(sf, "rb") as f:
+                content = f.read().decode("utf-8", errors="ignore")
+            for l in content.splitlines():
+                if "INSERT INTO support_records" in l:
+                    parts = l.split("'")
+                    if len(parts) >= 12:
+                        msg = parts[11].strip()
+                        if len(msg) > 10:
+                            lbl = 0 if any(k in msg.lower() for k in ["query", "access", "update", "status", "delivery"]) else 1
+                            items.append({"text": msg, "label": lbl, "mode": 1 if lbl == 0 else 2, "dataset_source": f"Dataset_K_Evidence_SQL_{fname}"})
+        except Exception:
+            pass
+
+    # 3. OCR Text Extractions from Console Screenshots
+    ocr_path = os.path.join(evidence_dir, "images_ocr_cache.json")
+    if os.path.exists(ocr_path):
+        try:
+            with open(ocr_path, "r", encoding="utf-8") as f:
+                ocr_data = json.load(f)
+            for img_name, ocr_text in ocr_data.items():
+                for l in ocr_text.split("\n"):
+                    l = l.strip()
+                    if len(l) > 25 and not l.startswith("http") and not l.startswith("#"):
+                        lbl = 1 if any(k in l.lower() for k in ["delete", "tombstone", "purge"]) else 0
+                        mode = 3 if any(k in l.lower() for k in ["audit", "security", "stream", "connector"]) else 2
+                        items.append({"text": l, "label": lbl, "mode": mode, "dataset_source": f"Dataset_K_Evidence_OCR_{img_name}"})
+        except Exception:
+            pass
+
+    # 4. System Activity Microservice Logs (system_activity.csv)
+    sa_path = os.path.join(dataset_dir, "system_activity.csv")
+    if os.path.exists(sa_path):
+        try:
+            sa = pd.read_csv(sa_path)
+            for _, r in sa.sample(min(500, len(sa)), random_state=42).iterrows():
+                det = str(r.get("details", "")).strip()
+                ev_type = str(r.get("event_type", "")).strip()
+                lbl = 1 if any(k in ev_type.lower() for k in ["delete", "purge", "tombstone"]) else 0
+                mode = 3 if any(k in ev_type.lower() for k in ["failover", "stream", "connector"]) else 1
+                items.append({"text": f"{ev_type}: {det}", "label": lbl, "mode": mode, "dataset_source": "Dataset_K_Evidence_SystemActivity"})
+        except Exception:
+            pass
+
+    # 5. Statutory Deletion Rules (deletion_rules.csv)
+    dr_path = os.path.join(dataset_dir, "deletion_rules.csv")
+    if os.path.exists(dr_path):
+        try:
+            dr = pd.read_csv(dr_path)
+            for _, r in dr.iterrows():
+                cat = str(r.get("data_category", "")).strip()
+                cond = str(r.get("condition", "")).strip()
+                act = str(r.get("required_action", "")).strip()
+                lbl = 0 if act in ["RETAIN", "ANONYMIZE"] else 1
+                mode = 2 if cond != "Always" else 1
+                items.append({
+                    "text": f"Rule for {cat}: Under condition '{cond}', require statutory action {act}.",
+                    "label": lbl,
+                    "mode": mode,
+                    "dataset_source": "Dataset_K_Evidence_DeletionRules"
+                })
+        except Exception:
+            pass
+
+    # 6. JSON Records & Handover Logs
+    for jf in glob.glob(os.path.join(evidence_dir, "records", "*.json")):
+        try:
+            with open(jf, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            if isinstance(data, dict) and "records" in data:
+                for rec in data["records"][:15]:
+                    sys_n = rec.get("system", "")
+                    r_type = rec.get("record_type", "")
+                    res = rec.get("result", "")
+                    txt = f"Audit verification for {sys_n} ({r_type}): state resolved to {res}."
+                    items.append({"text": txt, "label": 0, "mode": 1, "dataset_source": "Dataset_K_Evidence_JSON_Record"})
+        except Exception:
+            pass
+
+    # 7. Log Traces
+    for lf in glob.glob(os.path.join(evidence_dir, "logs", "*.log"))[:10]:
+        try:
+            with open(lf, "rb") as f:
+                content = f.read().decode("utf-8", errors="ignore")
+            for l in content.splitlines()[:15]:
+                l = l.strip()
+                if len(l) > 30:
+                    lbl = 1 if "delete" in l.lower() else 0
+                    mode = 3 if "error" in l.lower() or "fail" in l.lower() else 1
+                    items.append({"text": l, "label": lbl, "mode": mode, "dataset_source": "Dataset_K_Evidence_LogTrace"})
+        except Exception:
+            pass
+
+    logger.info("Loaded %d multimodal domain examples from Dataset K (Evidence Corpus)", len(items))
+    return items
+
+
 def build_multi_dataset_corpus(
     dataset_dir: str = DATASET_DIR,
     custom_data_paths: Optional[List[str]] = None,
@@ -580,6 +721,10 @@ def build_multi_dataset_corpus(
                     "mode": item["mode"],
                     "dataset_source": f"Dataset_J_Complex_Enterprise_{item['name']}",
                 })
+
+        # 11. Multimodal Evidence Knowledge Corpus (Dataset K)
+        evidence_items = load_evidence_knowledge_dataset(dataset_dir)
+        corpus.extend(evidence_items)
 
     # Save complete corpus to disk for inspection and auditability
     corpus_path = os.path.join(MODEL_DIR, "multi_dataset_corpus.json")
@@ -727,6 +872,10 @@ def train_cognitive_mode_model(output_path: Optional[str] = None) -> Pipeline:
     for txt, m in complex_scenarios:
         for _ in range(30):
             mode_samples.append((txt, m))
+
+    # Ingest Multimodal Evidence Knowledge Dataset (Dataset K)
+    for item in load_evidence_knowledge_dataset():
+        mode_samples.append((item["text"], item.get("mode", 1)))
 
     X_mode = np.array([t for t, m in mode_samples])
     y_mode = np.array([m for t, m in mode_samples])
