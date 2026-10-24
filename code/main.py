@@ -78,15 +78,15 @@ logger = logging.getLogger("NSTVE-MasterAgent")
 def display_banner():
     banner_text = (
         "[bold cyan]NORTHSTAR SHOP -- AI DELETION AUDIT AGENT[/bold cyan]\n"
-        "[bold white]7-Stage Neuro-Symbolic Temporal Verification Engine (NSTVE v2.0)[/bold white]\n"
-        "[dim]Zero-Hallucination | Zero-Cost | Universal Distributed System Auditor[/dim]"
+        "[bold white]Autonomous Multi-Agent Verification Architecture (NSTVE v4.0 Ultra)[/bold white]\n"
+        "[dim]Zero-Hallucination | Zero-Cost | Formal Invariant & Self-Healing Verifier[/dim]"
     )
     if HAS_RICH:
         console.print(Panel.fit(banner_text, border_style="bright_blue"))
     else:
         print("=" * 70)
-        print(" NORTHSTAR SHOP -- AI DELETION AUDIT AGENT (NSTVE v2.0)")
-        print(" Zero-Hallucination | Zero-Cost | Universal Distributed System Auditor")
+        print(" NORTHSTAR SHOP -- AI DELETION AUDIT AGENT (NSTVE v4.0 Ultra)")
+        print(" Zero-Hallucination | Zero-Cost | Formal Invariant & Self-Healing Verifier")
         print("=" * 70)
 
 
@@ -293,6 +293,70 @@ def run_interactive(dataset_dir: str = "dataset"):
             break
 
 
+
+def run_forensic(case_id: str, dataset_dir: str = "dataset"):
+    display_banner()
+    try:
+        from code.engine.advanced_agent import AdvancedAuditAgent
+    except ImportError:
+        from engine.advanced_agent import AdvancedAuditAgent
+
+    print(f"Executing Deep Forensic Multi-Agent Audit for Case: {case_id}...")
+    agent = AdvancedAuditAgent(dataset_dir=dataset_dir)
+
+    case_row = None
+    for csv_f in [f"{dataset_dir}/deletion_requests.csv", f"{dataset_dir}/sample_deletion_requests.csv"]:
+        if os.path.exists(csv_f):
+            df = pd.read_csv(csv_f)
+            m = df[df["case_id"] == case_id]
+            if not m.empty:
+                case_row = m.iloc[0]
+                break
+
+    if case_row is None:
+        print(f"Error: Case ID '{case_id}' not found in requests datasets.")
+        sys.exit(1)
+
+    status, steps, cert = agent.audit_case(case_row)
+
+    print("\n" + "=" * 70)
+    print(f"  FORENSIC AUDIT CERTIFICATE: {case_id}")
+    print("=" * 70)
+    print(f"  Subject Email:        {cert.email}")
+    print(f"  Audit Status:         {cert.deletion_status}")
+    print(f"  Confidence Score:     {cert.confidence_score*100:.1f}%")
+    print(f"  Risk Level:           {cert.risk_level}")
+    print(f"  Regulatory Mandate:   {cert.regulatory_framework}")
+    print(f"  Integrity Seal:       {cert.integrity_seal[:32]}...")
+    print(f"  Execution Latency:    {cert.execution_time_ms:.2f} ms")
+    print(f"  Self-Healed Invariant:{cert.self_healed}")
+
+    print("\n  Multi-Agent Cognitive Reasoning Chain:")
+    for t in cert.reasoning_chain:
+        print(f"    [{t['step_no']}] {t['agent_name']:<25} ({t['phase']})")
+        print(f"        Thought:     {t['thought']}")
+        print(f"        Observation: {t['observation']}")
+        print(f"        Action:      {t['action']}")
+
+    print(f"\n  Verified Step Sequence ({len(steps)} steps):")
+    for s in steps:
+        ev = f" (Evidence: {s['evidence_id']})" if s.get('evidence_id') else ""
+        print(f"    Step {s['step_no']:>2}: [{s['phase']:<12}] {s['system_id']:<18} {s['resource_id']:<15} {s['operation']:<26} -> {s['state']}{ev}")
+    print("=" * 70 + "\n")
+
+
+def run_dashboard(output_path: str = "output.csv", dataset_dir: str = "dataset"):
+    try:
+        from code.evaluation.generate_dashboard import generate_dashboard
+    except ImportError:
+        from evaluation.generate_dashboard import generate_dashboard
+    generate_dashboard(
+        output_path=output_path,
+        sample_requests_path=f"{dataset_dir}/sample_deletion_requests.csv",
+        full_requests_path=f"{dataset_dir}/deletion_requests.csv",
+        dashboard_path="code/evaluation/audit_dashboard.html"
+    )
+
 def run_benchmark():
     from run_benchmark import benchmark_samples, validate_submission_file
     benchmark_samples()
@@ -324,9 +388,21 @@ def main():
         help="Execute golden benchmark and validation suite"
     )
 
+    parser.add_argument(
+        "--forensic", type=str, default=None,
+        help="Run deep multi-agent forensic inspection on a specific Case ID"
+    )
+    parser.add_argument(
+        "--generate-dashboard", action="store_true",
+        help="Generate the executive interactive HTML visual audit dashboard"
+    )
     args = parser.parse_args()
 
-    if args.interactive:
+    if args.forensic:
+        run_forensic(args.forensic, dataset_dir=args.dataset_dir)
+    elif args.generate_dashboard:
+        run_dashboard(output_path=args.output, dataset_dir=args.dataset_dir)
+    elif args.interactive:
         run_interactive(dataset_dir=args.dataset_dir)
     elif args.benchmark:
         run_benchmark()
