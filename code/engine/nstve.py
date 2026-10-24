@@ -82,7 +82,7 @@ class NSTPipeline:
         audit_at = str(case_row["audit_at"]).strip()
 
         # ── Stage 1: Intent Gate ─────────────────────────────────────────────
-        intent = self.intent_gate.classify(request_text, use_llm_fallback=False)
+        intent = self.intent_gate.classify(request_text, use_llm_fallback=True)
         if intent == "NOT_APPLICABLE":
             return "NOT_APPLICABLE", []
 

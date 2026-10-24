@@ -174,45 +174,36 @@ def _stage1b_ml(request_text: str) -> Optional[str]:
 
 def _stage1c_llm(request_text: str) -> str:
     """
-    Stage 1C (formerly 1B): LLM micro-classifier for truly ambiguous text.
+    Stage 1C: LLM micro-classifier for truly ambiguous text via LLMClient.
     Returns "DELETION" or "NOT_APPLICABLE". Falls back to NOT_APPLICABLE on error.
     """
-    api_key = os.environ.get("OPENROUTER_API_KEY") or os.environ.get("GEMINI_API_KEY")
-    if not api_key:
-        logger.warning("Stage 1B: No API key found; defaulting to NOT_APPLICABLE for ambiguous text.")
+    try:
+        from code.engine.llm_client import LLMClient
+    except ImportError:
+        try:
+            from engine.llm_client import LLMClient
+        except ImportError:
+            return "NOT_APPLICABLE"
+
+    client = LLMClient()
+    if not client.is_active:
         return "NOT_APPLICABLE"
 
-    try:
-        import urllib.request
-        prompt = (
-            "You are a binary classifier. Answer with exactly one word: "
-            "DELETION if the customer is requesting account/data deletion, "
-            "NOT_APPLICABLE otherwise.\n\n"
-            f"Request text:\n{request_text[:1000]}\n\nAnswer:"
-        )
-        payload = json.dumps({
-            "model": "google/gemini-2.5-flash",
-            "messages": [{"role": "user", "content": prompt}],
-            "max_tokens": 5,
-        }).encode()
-        req = urllib.request.Request(
-            "https://openrouter.ai/api/v1/chat/completions",
-            data=payload,
-            headers={
-                "Authorization": f"Bearer {api_key}",
-                "Content-Type": "application/json",
-            },
-            method="POST",
-        )
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            data = json.loads(resp.read())
-        answer = data["choices"][0]["message"]["content"].strip().upper()
-        if "NOT" in answer:
-            return "NOT_APPLICABLE"
-        return "DELETION"
-    except Exception as exc:
-        logger.warning("Stage 1B LLM call failed (%s); defaulting to NOT_APPLICABLE.", exc)
+    result = client.classify_intent(request_text)
+    if result and isinstance(result, dict):
+        return "DELETION" if result.get("is_deletion") else "NOT_APPLICABLE"
+
+    # Fallback to simple completion if json parse fails
+    resp = client.call_chat([
+        {"role": "user", "content": f"Is this a customer account deletion request? Answer DELETION or NOT_APPLICABLE.\nText: {request_text[:800]}"}
+    ], max_tokens=10)
+
+    if resp and "NOT" in resp.upper():
         return "NOT_APPLICABLE"
+    elif resp and "DELET" in resp.upper():
+        return "DELETION"
+
+    return "NOT_APPLICABLE"
 
 
 class IntentGate:
@@ -227,7 +218,7 @@ class IntentGate:
         # Pre-load trained model at construction time
         _load_trained_model()
 
-    def classify(self, request_text: str, use_llm_fallback: bool = False) -> str:
+    def classify(self, request_text: str, use_llm_fallback: bool = True) -> str:
         """
         Returns "DELETION" or "NOT_APPLICABLE".
         """
@@ -241,7 +232,7 @@ class IntentGate:
         if result is not None:
             return result
 
-        # Stage 1C: LLM fallback (only when explicitly enabled and API key available)
+        # Stage 1C: Neural LLM fallback (when API key is configured)
         if use_llm_fallback:
             return _stage1c_llm(request_text)
 

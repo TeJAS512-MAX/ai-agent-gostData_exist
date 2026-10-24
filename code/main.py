@@ -178,6 +178,18 @@ def run_interactive(dataset_dir: str = "dataset"):
     id_graph = IdentityGraph(dataset_dir=dataset_dir)
     intent_gate = IntentGate()
 
+    try:
+        from code.engine.llm_client import LLMClient
+        llm_client = LLMClient()
+    except Exception:
+        llm_client = None
+
+    if llm_client and llm_client.is_active:
+        if HAS_RICH:
+            console.print(f"[bold green]Connected to Neural API:[/bold green] [yellow]{llm_client.model}[/yellow] (OpenRouter)\n")
+        else:
+            print(f"Connected to Neural API: {llm_client.model} (OpenRouter)\n")
+
     while True:
         try:
             if HAS_RICH:
@@ -254,6 +266,22 @@ def run_interactive(dataset_dir: str = "dataset"):
                     console.print(tbl)
                 else:
                     console.print("[dim]No steps generated (NOT_APPLICABLE or empty).[/dim]")
+
+                if llm_client and llm_client.is_active:
+                    with console.status("[bold cyan]Synthesizing Executive Compliance Briefing via OpenRouter API...[/bold cyan]"):
+                        narrative = llm_client.generate_audit_narrative(
+                            case_id=cid,
+                            email=email,
+                            deletion_status=status,
+                            steps=steps,
+                            request_text=req_text
+                        )
+                    console.print(Panel(
+                        narrative,
+                        title=f"[bold cyan]AI Executive Privacy Briefing (via {llm_client.model})[/bold cyan]",
+                        border_style="cyan"
+                    ))
+
                 console.print("\n" + "-" * 70 + "\n")
             else:
                 print(f"\nAudit Verdict for {cid} ({email}): {status}")
