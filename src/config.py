@@ -19,15 +19,25 @@ class Config:
     MAX_RETRIES: int = int(os.getenv("MAX_RETRIES", "3"))
     TIMEOUT_SECONDS: int = int(os.getenv("TIMEOUT_SECONDS", "30"))
 
-    # API Keys
+    # API Keys & Endpoints
     GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
     OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
     GROQ_API_KEY: str = os.getenv("GROQ_API_KEY", "")
     ANTHROPIC_API_KEY: str = os.getenv("ANTHROPIC_API_KEY", "")
+    
+    # Ollama (Local or Cloud/Remote)
+    OLLAMA_API_BASE: str = os.getenv("OLLAMA_API_BASE", "http://localhost:11434")
+    OLLAMA_API_KEY: str = os.getenv("OLLAMA_API_KEY", "")
+    OLLAMA_MODEL: str = os.getenv("OLLAMA_MODEL", "llama3.2")
 
     @classmethod
     def get_active_model(cls) -> str:
-        """Determines best active model based on available API keys."""
+        """Determines best active model based on provider preference and available credentials."""
+        # 1. Explicit Ollama Provider
+        if cls.DEFAULT_LLM_PROVIDER == "ollama":
+            return f"ollama/{cls.OLLAMA_MODEL}"
+        
+        # 2. Cloud Providers
         if cls.GEMINI_API_KEY and not cls.GEMINI_API_KEY.startswith("your_"):
             return "gemini/gemini-3.8-flash"
         if cls.GROQ_API_KEY and not cls.GROQ_API_KEY.startswith("your_"):
@@ -36,5 +46,9 @@ class Config:
             return "openai/gpt-4o-mini"
         if cls.ANTHROPIC_API_KEY and not cls.ANTHROPIC_API_KEY.startswith("your_"):
             return "anthropic/claude-3-5-sonnet-20241022"
-        return "mock/rule-based"
+        
+        # 3. Fallback to local Ollama if configured
+        if cls.OLLAMA_MODEL and cls.DEFAULT_LLM_PROVIDER != "mock":
+            return f"ollama/{cls.OLLAMA_MODEL}"
 
+        return "mock/rule-based"

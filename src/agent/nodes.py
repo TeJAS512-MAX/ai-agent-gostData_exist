@@ -85,6 +85,12 @@ def reasoning_node(state: AgentState) -> dict:
     if model_name.startswith("mock/"):
         return _heuristic_reasoning(ticket, citations, security)
 
+    extra_kwargs = {}
+    if model_name.startswith("ollama/"):
+        extra_kwargs["api_base"] = Config.OLLAMA_API_BASE
+        if Config.OLLAMA_API_KEY:
+            extra_kwargs["api_key"] = Config.OLLAMA_API_KEY
+
     try:
         response = litellm.completion(
             model=model_name,
@@ -93,7 +99,8 @@ def reasoning_node(state: AgentState) -> dict:
                 {"role": "user", "content": user_prompt}
             ],
             temperature=0.0,
-            response_format={"type": "json_object"}
+            response_format={"type": "json_object"},
+            **extra_kwargs
         )
         content = response.choices[0].message.content
         data = json.loads(content)
