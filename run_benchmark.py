@@ -41,6 +41,16 @@ from code.engine.nstve import NSTPipeline
 from code.evaluation.evaluator import evaluate, load_csv
 
 
+def _resolve_path(p: str) -> str:
+    if os.path.exists(p):
+        return p
+    for r in [str(REPO_ROOT), "..", "../.."]:
+        cand = os.path.join(r, p)
+        if os.path.exists(cand):
+            return os.path.abspath(cand)
+    return p
+
+
 def print_msg(msg: str, style: str = ""):
     if HAS_RICH and style:
         console.print(f"[{style}]{msg}[/{style}]")
@@ -56,6 +66,10 @@ def benchmark_samples(
     print_msg("\n" + "=" * 70, "bold cyan")
     print_msg(" 1. BENCHMARKING NSTVE ENGINE ON 32 GOLDEN SAMPLE CASES", "bold cyan")
     print_msg("=" * 70, "bold cyan")
+
+    sample_requests_path = _resolve_path(sample_requests_path)
+    sample_gold_path = _resolve_path(sample_gold_path)
+    dataset_dir = _resolve_path(dataset_dir)
 
     if not os.path.exists(sample_requests_path) or not os.path.exists(sample_gold_path):
         print_msg(f"ERROR: Sample files missing ({sample_requests_path} or {sample_gold_path})", "bold red")
@@ -78,6 +92,7 @@ def benchmark_samples(
     elapsed = time.time() - t0
 
     pred_df = pd.DataFrame(pred_records)
+    pred_df.to_csv("sample_predictions.csv", index=False)
     results = evaluate(pred_df, gold_df, verbose=False)
 
     # Display Rich Summary Table
@@ -104,6 +119,7 @@ def benchmark_samples(
 
 
 def validate_submission_file(output_path: str = "output.csv"):
+    output_path = _resolve_path(output_path)
     print_msg("\n" + "=" * 70, "bold yellow")
     print_msg(f" 2. VALIDATING SUBMISSION FILE: {output_path}", "bold yellow")
     print_msg("=" * 70, "bold yellow")

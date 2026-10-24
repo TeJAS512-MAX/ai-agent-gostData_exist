@@ -10,16 +10,17 @@ Computes:
   - Sequence (Exact Array) Accuracy
 
 Usage:
-    python evaluation/evaluator.py \\
-        --predictions sample_predictions.csv \\
-        --ground-truth dataset/sample_output.csv
+    python evaluation/evaluator.py
+    python evaluation/evaluator.py sample_predictions.csv
+    python evaluation/evaluator.py --predictions sample_predictions.csv --ground-truth dataset/sample_output.csv
 """
 
 import argparse
 import json
 import sys
 import os
-from typing import Any, Dict, List, Tuple
+from pathlib import Path
+from typing import Any, Dict, List, Tuple, Optional
 
 import pandas as pd
 
@@ -58,104 +59,133 @@ def compare_steps(
       matching_tuples: number of exact-matching tuples in aligned positions
       field_hits: dict {field: hits}
     """
-    pred_ops = [step_tuple(s) for s in pred_steps]
-    gold_ops = [step_tuple(s) for s in gold_steps]
-    exact_match = pred_ops == gold_ops
+    field_hits = {f: 0 for f in STEP_FIELDS}
 
     aligned = min(len(pred_steps), len(gold_steps))
-    field_hits: Dict[str, int] = {f: 0 for f in STEP_FIELDS}
     matching_tuples = 0
+
     for i in range(aligned):
         p, g = pred_steps[i], gold_steps[i]
-        full_match = True
-        for fi, f in enumerate(STEP_FIELDS):
-            if str(p.get(f, "")) == str(g.get(f, "")):
+        all_match = True
+        for f in STEP_FIELDS:
+            pv = str(p.get(f, "")).strip()
+            gv = str(g.get(f, "")).strip()
+            if pv == gv:
                 field_hits[f] += 1
             else:
-                full_match = False
-        if full_match:
+                all_match = False
+        if all_match:
             matching_tuples += 1
 
-    return exact_match, aligned, matching_tuples, field_hits
+    exact_seq = (
+        len(pred_steps) == len(gold_steps)
+        and matching_tuples == len(gold_steps)
+    )
+    return exact_seq, aligned, matching_tuples, field_hits
 
 
-def evaluate(pred_df: pd.DataFrame, gold_df: pd.DataFrame, verbose: bool = True) -> Dict:
-    # Align on case_id
-    gold_idx = gold_df.set_index("case_id")
-    pred_idx = pred_df.set_index("case_id")
+def evaluate(
+    pred_df: pd.DataFrame,
+    gold_df: pd.DataFrame,
+    verbose: bool = True,
+) -> Dict[str, Any]:
+    """
+    Evaluates predictions against gold answers.
+    Expects columns: case_id, deletion_status, steps_json
+    """
+    gold_map = {str(r["case_id"]).strip(): r for _, r in gold_df.iterrows()}
+    pred_map = {str(r["case_id"]).strip(): r for _, r in pred_df.iterrows()}
 
-    common_ids = gold_idx.index.intersection(pred_idx.index)
-    n = len(common_ids)
+    common_cases = [cid for cid in gold_map if cid in pred_map]
+    n = len(common_cases)
 
     status_correct = 0
     exact_seq = 0
+    total_aligned = 0
+    matching_tuples = 0
+    field_hits = {f: 0 for f in STEP_FIELDS}
     total_gold_steps = 0
     total_pred_steps = 0
-    total_aligned = 0
-    total_matching_tuples = 0
-    total_field_hits: Dict[str, int] = {f: 0 for f in STEP_FIELDS}
 
-    mismatched_cases = []
+    mismatched = []
 
-    for cid in sorted(common_ids, key=lambda x: int("".join(filter(str.isdigit, x))) if any(c.isdigit() for c in x) else 0):
-        gold_row = gold_idx.loc[cid]
-        pred_row = pred_idx.loc[cid]
+    for cid in common_cases:
+        gold_row = gold_map[cid]
+        pred_row = pred_map[cid]
 
-        gold_status = str(gold_row.get("deletion_status", "")).strip()
-        pred_status = str(pred_row.get("deletion_status", "")).strip()
-
-        gold_steps = parse_steps(str(gold_row.get("steps_json", "[]")))
-        pred_steps = parse_steps(str(pred_row.get("steps_json", "[]")))
-
-        status_ok = gold_status == pred_status
-        if status_ok:
+        # Status check
+        gold_status = str(gold_row.get("deletion_status", "")).strip().upper()
+        pred_status = str(pred_row.get("deletion_status", "")).strip().upper()
+        if gold_status == pred_status:
             status_correct += 1
 
-        exact_match, aligned, matching_tuples, field_hits = compare_steps(pred_steps, gold_steps)
-        if exact_match:
+        # Step check
+        g_steps = parse_steps(str(gold_row.get("steps_json", "[]")))
+        p_steps = parse_steps(str(pred_row.get("steps_json", "[]")))
+        total_gold_steps += len(g_steps)
+        total_pred_steps += len(p_steps)
+
+        is_exact, aligned, matches, hits = compare_steps(p_steps, g_steps)
+        if is_exact:
             exact_seq += 1
         else:
-            mismatched_cases.append({
+            mismatched.append({
                 "case_id": cid,
                 "gold_status": gold_status,
                 "pred_status": pred_status,
-                "gold_steps": len(gold_steps),
-                "pred_steps": len(pred_steps),
-                "gold_ops": [step_tuple(s) for s in gold_steps],
-                "pred_ops": [step_tuple(s) for s in pred_steps],
+                "gold_steps": len(g_steps),
+                "pred_steps": len(p_steps),
+                "matches": matches,
             })
 
-        total_gold_steps += len(gold_steps)
-        total_pred_steps += len(pred_steps)
         total_aligned += aligned
-        total_matching_tuples += matching_tuples
+        matching_tuples += matches
         for f in STEP_FIELDS:
-            total_field_hits[f] += field_hits[f]
+            field_hits[f] += hits[f]
 
-    if verbose:
-        _print_report(
-            n, status_correct, exact_seq,
-            total_gold_steps, total_pred_steps, total_aligned,
-            total_matching_tuples, total_field_hits, mismatched_cases,
-        )
-
-    return {
-        "n_cases": n,
-        "status_accuracy": status_correct / n if n else 0.0,
-        "exact_sequence_accuracy": exact_seq / n if n else 0.0,
-        "step_tuple_accuracy": total_matching_tuples / total_gold_steps if total_gold_steps else 0.0,
-        "field_accuracy": {
-            f: total_field_hits[f] / total_aligned for f in STEP_FIELDS
-        } if total_aligned else {},
+    status_acc = status_correct / n if n else 0.0
+    seq_acc = exact_seq / n if n else 0.0
+    step_acc = matching_tuples / total_gold_steps if total_gold_steps else 0.0
+    field_acc = {
+        f: field_hits[f] / total_aligned if total_aligned else 0.0
+        for f in STEP_FIELDS
     }
 
+    results = {
+        "n_cases": n,
+        "status_correct": status_correct,
+        "status_accuracy": status_acc,
+        "exact_sequence_matches": exact_seq,
+        "exact_sequence_accuracy": seq_acc,
+        "total_gold_steps": total_gold_steps,
+        "total_pred_steps": total_pred_steps,
+        "total_aligned_positions": total_aligned,
+        "exact_matching_tuples": matching_tuples,
+        "step_tuple_accuracy": step_acc,
+        "field_hits": field_hits,
+        "field_accuracy": field_acc,
+        "mismatched_cases": mismatched,
+    }
 
-def _print_report(
-    n, status_correct, exact_seq,
-    total_gold, total_pred, total_aligned,
-    matching_tuples, field_hits, mismatched,
-):
-    sep = "=" * 60
+    if verbose:
+        print_report(results)
+
+    return results
+
+
+def print_report(results: Dict[str, Any]):
+    sep = "=" * 65
+    n = results["n_cases"]
+    status_correct = results["status_correct"]
+    exact_seq = results["exact_sequence_matches"]
+    total_gold = results["total_gold_steps"]
+    total_pred = results["total_pred_steps"]
+    total_aligned = results["total_aligned_positions"]
+    matching_tuples = results["exact_matching_tuples"]
+    field_hits = results["field_hits"]
+    mismatched = results["mismatched_cases"]
+
+    print()
     print(sep)
     print("  Northstar Shop Deletion Audit - Evaluation Report")
     print(sep)
@@ -190,20 +220,69 @@ def _print_report(
     print(sep)
 
 
+def _resolve_candidate(path_str: Optional[str], default_names: List[str]) -> Optional[str]:
+    if path_str:
+        if os.path.isfile(path_str):
+            return path_str
+        for prefix in [".", "..", "../.."]:
+            cand = os.path.join(prefix, path_str)
+            if os.path.isfile(cand):
+                return os.path.abspath(cand)
+        return path_str
+
+    for name in default_names:
+        for prefix in [".", "..", "../.."]:
+            cand = os.path.join(prefix, name)
+            if os.path.isfile(cand):
+                return os.path.abspath(cand)
+    return None
+
+
 def main():
     parser = argparse.ArgumentParser(description="Northstar Shop Deletion Audit Evaluator")
     parser.add_argument(
-        "--predictions", required=True,
+        "target", nargs="?", default=None,
+        help="Path to predictions CSV (optional positional argument)"
+    )
+    parser.add_argument(
+        "--predictions", "-p", default=None,
         help="Path to predictions CSV (case_id, deletion_status, steps_json)"
     )
     parser.add_argument(
-        "--ground-truth", default="dataset/sample_output.csv",
+        "--ground-truth", "-g", default=None,
         help="Path to ground-truth CSV (case_id, deletion_status, steps_json)"
     )
     args = parser.parse_args()
 
-    pred_df = load_csv(args.predictions)
-    gold_df = load_csv(args.ground_truth)
+    pred_target = args.predictions or args.target
+    pred_path = _resolve_candidate(pred_target, ["sample_predictions.csv", "output.csv"])
+
+    gold_path = _resolve_candidate(args.ground_truth, ["dataset/sample_output.csv"])
+    if not gold_path or not os.path.isfile(gold_path):
+        print(f"ERROR: Ground-truth file not found: {args.ground_truth or 'dataset/sample_output.csv'}")
+        return 1
+
+    # If sample_predictions.csv doesn't exist yet, generate it via benchmark
+    if not pred_path or not os.path.isfile(pred_path) or pred_target is None:
+        if not os.path.isfile("sample_predictions.csv"):
+            try:
+                # Add repo root to sys.path
+                root_dir = str(Path(__file__).resolve().parent.parent.parent)
+                sys.path.insert(0, root_dir)
+                from run_benchmark import benchmark_samples
+                print("Running calibration on 32 golden samples to generate predictions...")
+                benchmark_samples()
+                pred_path = _resolve_candidate("sample_predictions.csv", ["sample_predictions.csv"])
+            except Exception as e:
+                pass
+
+    if not pred_path or not os.path.isfile(pred_path):
+        print(f"ERROR: Predictions file not found: {pred_target or 'sample_predictions.csv'}")
+        return 1
+
+    print(f"Evaluating: {os.path.basename(pred_path)} against {os.path.basename(gold_path)}...")
+    pred_df = load_csv(pred_path)
+    gold_df = load_csv(gold_path)
 
     results = evaluate(pred_df, gold_df, verbose=True)
     if results["n_cases"] == 0:

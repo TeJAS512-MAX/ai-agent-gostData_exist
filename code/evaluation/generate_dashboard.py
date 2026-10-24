@@ -16,6 +16,16 @@ sys.path.insert(0, REPO_ROOT)
 sys.path.insert(0, os.path.join(REPO_ROOT, "code"))
 
 
+def _resolve_path(p: str) -> str:
+    if os.path.exists(p):
+        return p
+    for r in [REPO_ROOT, "..", "../..", os.path.join(REPO_ROOT, "code")]:
+        cand = os.path.join(r, p)
+        if os.path.exists(cand):
+            return os.path.abspath(cand)
+    return p
+
+
 def generate_dashboard(
     output_path: str = "output.csv",
     sample_requests_path: str = "dataset/sample_deletion_requests.csv",
@@ -23,6 +33,14 @@ def generate_dashboard(
     dashboard_path: str = "code/evaluation/audit_dashboard.html"
 ):
     print("Generating Northstar Shop Executive Audit Dashboard...")
+    output_path = _resolve_path(output_path)
+    sample_requests_path = _resolve_path(sample_requests_path)
+    full_requests_path = _resolve_path(full_requests_path)
+    if not os.path.isabs(dashboard_path):
+        cand = os.path.join(REPO_ROOT, dashboard_path)
+        if os.path.exists(os.path.dirname(cand)):
+            dashboard_path = cand
+
     if not os.path.exists(output_path):
         print(f"Error: {output_path} not found.")
         return

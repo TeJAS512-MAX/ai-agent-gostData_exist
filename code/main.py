@@ -52,9 +52,30 @@ except ImportError:
     console = None
 
 # Ensure both repository root and code directory are on sys.path
-REPO_ROOT = Path(__file__).resolve().parent
+SCRIPT_DIR = Path(__file__).resolve().parent
+if (SCRIPT_DIR / "dataset").is_dir():
+    REPO_ROOT = SCRIPT_DIR
+elif (SCRIPT_DIR.parent / "dataset").is_dir():
+    REPO_ROOT = SCRIPT_DIR.parent
+else:
+    REPO_ROOT = SCRIPT_DIR
+
 sys.path.insert(0, str(REPO_ROOT))
 sys.path.insert(0, str(REPO_ROOT / "code"))
+sys.path.insert(0, str(SCRIPT_DIR))
+
+
+def _resolve_path(p: str) -> str:
+    if not p:
+        return p
+    if os.path.exists(p):
+        return os.path.abspath(p)
+    for r in [str(REPO_ROOT), str(SCRIPT_DIR), "..", "../.."]:
+        cand = os.path.join(r, p)
+        if os.path.exists(cand):
+            return os.path.abspath(cand)
+    return p
+
 
 try:
     from code.engine.nstve import NSTPipeline
@@ -97,6 +118,9 @@ def _case_sort_key(cid: str) -> int:
 
 def run_batch(input_path: str, output_path: str, dataset_dir: str):
     display_banner()
+    input_path = _resolve_path(input_path)
+    dataset_dir = _resolve_path(dataset_dir)
+
     if HAS_RICH:
         console.print(f"[bold green]>> Running Batch Audit Pipeline[/bold green]")
         console.print(f"  * Input Path:        [cyan]{input_path}[/cyan]")
@@ -117,14 +141,14 @@ def run_batch(input_path: str, output_path: str, dataset_dir: str):
         sys.exit(1)
 
     t0 = time.time()
-    print("Initialising 7-Stage NSTVE Pipeline & Multimodal Indices...")
+    print("Initialising 7-Stage NSTVE Pipeline & Multimodal Indices...", flush=True)
     pipeline = NSTPipeline(dataset_dir=dataset_dir)
     init_time = time.time() - t0
-    print(f"Pipeline ready in {init_time:.2f}s.\n")
+    print(f"Pipeline ready in {init_time:.2f}s.\n", flush=True)
 
     requests_df = pd.read_csv(input_path)
     total_cases = len(requests_df)
-    print(f"Auditing {total_cases} requests...")
+    print(f"Auditing {total_cases} requests...", flush=True)
 
     results = []
     status_counts = {"COMPLETE": 0, "INCOMPLETE": 0, "NOT_APPLICABLE": 0}
@@ -141,10 +165,12 @@ def run_batch(input_path: str, output_path: str, dataset_dir: str):
             "steps_json": json.dumps(steps),
         })
 
-        if (idx + 1) % 50 == 0 or (idx + 1) == total_cases:
+        if idx == 0:
+            print(f"  Audited case 1/{total_cases} [INITIATED]...", flush=True)
+        elif (idx + 1) % 50 == 0 or (idx + 1) == total_cases:
             elapsed = time.time() - t1
             pct = (idx + 1) / total_cases * 100
-            print(f"  Processed {idx + 1}/{total_cases} ({pct:.1f}%) in {elapsed:.1f}s")
+            print(f"  Processed {idx + 1}/{total_cases} ({pct:.1f}%) in {elapsed:.1f}s", flush=True)
 
     total_time = time.time() - t1
 
@@ -152,20 +178,22 @@ def run_batch(input_path: str, output_path: str, dataset_dir: str):
     out_df = out_df.sort_values("case_id")
     out_df.to_csv(output_path, index=False)
 
-    print("\n" + "=" * 70)
-    print(" AUDIT EXECUTION SUMMARY")
-    print("=" * 70)
-    print(f"  Total Processed Cases: {len(out_df)}")
-    print(f"  Execution Time:        {total_time:.2f}s ({total_time/total_cases*1000:.1f} ms/case)")
-    print(f"  Target File:           {output_path}")
-    print("  Status Breakdown:")
+    print("\n" + "=" * 70, flush=True)
+    print(" AUDIT EXECUTION SUMMARY", flush=True)
+    print("=" * 70, flush=True)
+    print(f"  Total Processed Cases: {len(out_df)}", flush=True)
+    print(f"  Execution Time:        {total_time:.2f}s ({total_time/total_cases*1000:.1f} ms/case)", flush=True)
+    print(f"  Target File:           {output_path}", flush=True)
+    print("  Status Breakdown:", flush=True)
     for st, count in sorted(status_counts.items()):
-        print(f"    {st:<18}: {count:>4} ({count/total_cases*100:.1f}%)")
-    print("=" * 70 + "\n")
+        print(f"    {st:<18}: {count:>4} ({count/total_cases*100:.1f}%)", flush=True)
+    print("=" * 70 + "\n", flush=True)
 
 
 def run_interactive(dataset_dir: str = "dataset"):
     display_banner()
+    dataset_dir = _resolve_path(dataset_dir)
+
     if HAS_RICH:
         console.print("[bold yellow]Interactive Audit Console Enabled[/bold yellow]")
         console.print("[dim]Enter any email, case_id (e.g. case_01, case_33), or custom request to inspect the live audit graph.[/dim]")
@@ -201,101 +229,106 @@ def run_interactive(dataset_dir: str = "dataset"):
             if not query:
                 continue
 
-            # Check if query matches a known case_id in sample or full dataset
-            case_row = None
-            for csv_f in ["dataset/sample_deletion_requests.csv", "dataset/deletion_requests.csv"]:
+            # Check if query matches a Case ID
+            match_row = None
+            for csv_f in [f"{dataset_dir}/deletion_requests.csv", f"{dataset_dir}/sample_deletion_requests.csv"]:
                 if os.path.exists(csv_f):
                     df = pd.read_csv(csv_f)
                     m = df[df["case_id"] == query]
                     if not m.empty:
-                        case_row = m.iloc[0]
-                        break
-                    m_em = df[df["email"].str.lower() == query.lower()]
-                    if not m_em.empty:
-                        case_row = m_em.iloc[0]
+                        match_row = m.iloc[0]
                         break
 
-            if case_row is not None:
-                status, steps = pipeline.run_case(case_row)
-                email = case_row["email"]
-                cid = case_row["case_id"]
-                req_text = case_row.get("request_text", "")
-            else:
-                email = query if "@" in query else "user@example.com"
-                cid = "AD-HOC"
-                req_text = query
-                mock_row = pd.Series({
-                    "case_id": cid,
-                    "email": email,
-                    "requested_at": "2026-09-20T08:00:00Z",
-                    "reported_status": "COMPLETE",
-                    "reported_at": "2026-09-22T02:00:00Z",
-                    "audit_at": "2026-09-27T13:00:00Z",
-                    "request_text": req_text
-                })
-                status, steps = pipeline.run_case(mock_row)
-
-            # Display Findings & Verification Steps
-            if HAS_RICH:
-                status_color = "green" if status == "COMPLETE" else ("yellow" if status == "INCOMPLETE" else "red")
-                console.print(f"\n[bold]Audit Verdict for {cid} ({email}):[/bold] [{status_color}]{status}[/{status_color}]")
-                console.print(f"[dim]Request:[/dim] {req_text[:120]}...")
-
-                if steps:
-                    tbl = Table(title=f"Compiled Steps ({len(steps)})", border_style="blue")
-                    tbl.add_column("#", width=4, justify="right")
-                    tbl.add_column("Phase", style="bold")
-                    tbl.add_column("System", style="cyan")
-                    tbl.add_column("Resource", style="magenta")
-                    tbl.add_column("Operation", style="yellow")
-                    tbl.add_column("State", style="white")
-                    tbl.add_column("Evidence ID", style="dim")
-
-                    for s in steps:
-                        phase_c = "red" if s["phase"] == "FINDING" else ("yellow" if s["phase"] == "REMEDIATION" else "green")
-                        tbl.add_row(
-                            str(s["step_no"]),
-                            f"[{phase_c}]{s['phase']}[/{phase_c}]",
-                            s["system_id"],
-                            s["resource_id"],
-                            s["operation"],
-                            s["state"],
-                            s.get("evidence_id") or "-"
-                        )
-                    console.print(tbl)
+            if match_row is not None:
+                if HAS_RICH:
+                    console.print(f"\n[bold green]-- AUDITING CASE: {query} --[/bold green]")
+                    console.print(f"  Email:            [cyan]{match_row['email']}[/cyan]")
+                    console.print(f"  Reported Status:  [yellow]{match_row.get('reported_status', 'N/A')}[/yellow]")
+                    console.print(f"  Audit Timestamp:  [dim]{match_row.get('audit_at', 'N/A')}[/dim]")
                 else:
-                    console.print("[dim]No steps generated (NOT_APPLICABLE or empty).[/dim]")
+                    print(f"\n-- AUDITING CASE: {query} --")
+                    print(f"  Email: {match_row['email']}")
 
-                if llm_client and llm_client.is_active:
-                    with console.status("[bold cyan]Synthesizing Executive Compliance Briefing via OpenRouter API...[/bold cyan]"):
-                        narrative = llm_client.generate_audit_narrative(
-                            case_id=cid,
-                            email=email,
-                            deletion_status=status,
-                            steps=steps,
-                            request_text=req_text
-                        )
-                    console.print(Panel(
-                        narrative,
-                        title=f"[bold cyan]AI Executive Privacy Briefing (via {llm_client.model})[/bold cyan]",
-                        border_style="cyan"
-                    ))
+                status, steps = pipeline.run_case(match_row)
 
-                console.print("\n" + "-" * 70 + "\n")
+                if HAS_RICH:
+                    st_color = "green" if status == "COMPLETE" else ("red" if status == "INCOMPLETE" else "yellow")
+                    console.print(f"  Audit Decision:   [{st_color}]{status}[/{st_color}]")
+                    console.print(f"  Synthesized Steps: {len(steps)}\n")
+
+                    if steps:
+                        tbl = Table(title=f"Verification Plan for {query}", border_style="blue")
+                        tbl.add_column("No", style="bold white", width=4)
+                        tbl.add_column("Phase", style="yellow")
+                        tbl.add_column("System ID", style="cyan")
+                        tbl.add_column("Resource ID", style="magenta")
+                        tbl.add_column("Operation", style="white")
+                        tbl.add_column("State", style="green")
+                        tbl.add_column("Evidence", style="dim")
+
+                        for s in steps:
+                            tbl.add_row(
+                                str(s["step_no"]),
+                                s["phase"],
+                                s["system_id"],
+                                s["resource_id"],
+                                s["operation"],
+                                s["state"],
+                                s.get("evidence_id", "") or "-"
+                            )
+                        console.print(tbl)
+                        console.print()
+                else:
+                    print(f"  Audit Decision:   {status}")
+                    print(f"  Synthesized Steps: {len(steps)}\n")
+                    for s in steps:
+                        print(f"    Step {s['step_no']}: [{s['phase']}] {s['system_id']} {s['resource_id']} {s['operation']} -> {s['state']} (Evidence: {s['evidence_id']})")
+                    print()
+                continue
+
+            # Check if query is an email address
+            if "@" in query:
+                footprint = id_graph.resolve_by_email(query)
+                if HAS_RICH:
+                    console.print(f"\n[bold green]-- TRANSITIVE IDENTITY GRAPH FOR: {query} --[/bold green]")
+                    console.print(f"  Resolved User ID:  [bold cyan]{footprint.user_id or 'UNKNOWN'}[/bold cyan]")
+                    console.print(f"  Full Names:        [white]{list(footprint.names)}[/white]")
+                    console.print(f"  Known Email Aliases: [white]{list(footprint.emails)}[/white]")
+                    console.print(f"  Phone Numbers:     [white]{list(footprint.phones)}[/white]")
+                    console.print(f"  Cryptographic Hashes: [dim]{list(footprint.hashes)[:3]}...[/dim]\n")
+                else:
+                    print(f"\n-- TRANSITIVE IDENTITY GRAPH FOR: {query} --")
+                    print(f"  Resolved User ID:  {footprint.user_id}")
+                    print(f"  Full Names:        {list(footprint.names)}")
+                    print(f"  Known Email Aliases: {list(footprint.emails)}")
+                    print(f"  Phone Numbers:     {list(footprint.phones)}\n")
+                continue
+
+            # Free-text intent classification
+            pred, conf, tier = intent_gate.classify(query)
+            intent_label = "DELETION REQUEST" if pred == 1 else "NON-DELETION REQUEST (NOT_APPLICABLE)"
+            if HAS_RICH:
+                col = "green" if pred == 1 else "yellow"
+                console.print(f"\n[bold cyan]-- SEMANTIC INTENT CLASSIFIER --[/bold cyan]")
+                console.print(f"  Text:        \"{query}\"")
+                console.print(f"  Decision:    [{col}]{intent_label}[/{col}]")
+                console.print(f"  Confidence:  {conf*100:.2f}%")
+                console.print(f"  Gating Tier: {tier}\n")
             else:
-                print(f"\nAudit Verdict for {cid} ({email}): {status}")
-                print(f"Request: {req_text[:120]}...")
-                for s in steps:
-                    print(f"  Step {s['step_no']:>2}: [{s['phase']:<12}] {s['system_id']:<18} {s['resource_id']:<15} {s['operation']:<25} {s.get('evidence_id','')}")
-                print("\n" + "-" * 70 + "\n")
+                print(f"\n-- SEMANTIC INTENT CLASSIFIER --")
+                print(f"  Text:       \"{query}\"")
+                print(f"  Decision:   {intent_label}")
+                print(f"  Confidence: {conf*100:.2f}% (Tier: {tier})\n")
 
         except (KeyboardInterrupt, EOFError):
             break
-
+        except Exception as e:
+            print(f"Interactive console error: {e}")
 
 
 def run_forensic(case_id: str, dataset_dir: str = "dataset"):
     display_banner()
+    dataset_dir = _resolve_path(dataset_dir)
     try:
         from code.engine.advanced_agent import AdvancedAuditAgent
     except ImportError:
@@ -346,6 +379,7 @@ def run_forensic(case_id: str, dataset_dir: str = "dataset"):
 
 
 def run_dashboard(output_path: str = "output.csv", dataset_dir: str = "dataset"):
+    dataset_dir = _resolve_path(dataset_dir)
     try:
         from code.evaluation.generate_dashboard import generate_dashboard
     except ImportError:
@@ -357,10 +391,23 @@ def run_dashboard(output_path: str = "output.csv", dataset_dir: str = "dataset")
         dashboard_path="code/evaluation/audit_dashboard.html"
     )
 
+
 def run_benchmark():
-    from run_benchmark import benchmark_samples, validate_submission_file
-    benchmark_samples()
-    validate_submission_file()
+    try:
+        from run_benchmark import benchmark_samples, validate_submission_file
+        benchmark_samples()
+        validate_submission_file()
+    except ImportError:
+        try:
+            sys.path.insert(0, str(REPO_ROOT))
+            from run_benchmark import benchmark_samples, validate_submission_file
+            benchmark_samples()
+            validate_submission_file()
+        except ImportError:
+            from evaluation.evaluator import main as eval_main
+            eval_main()
+            from evaluation.validate_submission import main as val_main
+            val_main()
 
 
 def main():
@@ -398,16 +445,20 @@ def main():
     )
     args = parser.parse_args()
 
+    dataset_dir = _resolve_path(args.dataset_dir)
+    input_path = _resolve_path(args.input)
+    output_path = args.output
+
     if args.forensic:
-        run_forensic(args.forensic, dataset_dir=args.dataset_dir)
+        run_forensic(args.forensic, dataset_dir=dataset_dir)
     elif args.generate_dashboard:
-        run_dashboard(output_path=args.output, dataset_dir=args.dataset_dir)
+        run_dashboard(output_path=output_path, dataset_dir=dataset_dir)
     elif args.interactive:
-        run_interactive(dataset_dir=args.dataset_dir)
+        run_interactive(dataset_dir=dataset_dir)
     elif args.benchmark:
         run_benchmark()
     else:
-        run_batch(args.input, args.output, args.dataset_dir)
+        run_batch(input_path, output_path, dataset_dir)
 
 
 if __name__ == "__main__":

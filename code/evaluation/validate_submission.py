@@ -3,6 +3,8 @@
 import argparse
 import csv
 import json
+import os
+import sys
 from pathlib import Path
 
 
@@ -173,20 +175,56 @@ def validate(input_path: Path, output_path: Path) -> list[str]:
     return errors
 
 
+def _resolve_candidate(path_str: str | None, default_names: list[str]) -> Path | None:
+    if path_str:
+        p = Path(path_str)
+        if p.is_file():
+            return p
+        for prefix in [Path("."), Path(".."), Path("../..")]:
+            cand = prefix / path_str
+            if cand.is_file():
+                return cand.resolve()
+        return p  # return original as best effort
+
+    for name in default_names:
+        for prefix in [Path("."), Path(".."), Path("../..")]:
+            cand = prefix / name
+            if cand.is_file():
+                return cand.resolve()
+    return None
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--input", default="dataset/deletion_requests.csv")
-    parser.add_argument("--output", default="output.csv")
+    parser.add_argument("target", nargs="?", default=None, help="Path to output CSV file (optional positional argument)")
+    parser.add_argument("--input", "-i", default=None, help="Path to input deletion requests CSV")
+    parser.add_argument("--output", "-o", default=None, help="Path to output predictions CSV")
     args = parser.parse_args()
 
-    errors = validate(Path(args.input), Path(args.output))
+    # Determine output path
+    output_target = args.output or args.target
+    output_path = _resolve_candidate(output_target, ["output.csv", "sample_predictions.csv"])
+    if not output_path or not output_path.is_file():
+        fallback = Path(output_target if output_target else "output.csv")
+        print(f"ERROR: Output file not found: {fallback}")
+        return 1
+
+    # Determine input path
+    input_path = _resolve_candidate(args.input, ["dataset/deletion_requests.csv", "dataset/sample_deletion_requests.csv"])
+    if not input_path or not input_path.is_file():
+        fallback_in = Path(args.input if args.input else "dataset/deletion_requests.csv")
+        print(f"ERROR: Input requests file not found: {fallback_in}")
+        return 1
+
+    print(f"Validating: {output_path.name} against {input_path.name}...")
+    errors = validate(input_path, output_path)
     if errors:
         for error in errors:
             print(f"ERROR: {error}")
         print(f"Validation failed with {len(errors)} error(s).")
         return 1
 
-    print("Submission contract validation passed.")
+    print(f"Submission contract validation passed for {output_path.name} ({len(_load_rows(output_path))} rows).")
     return 0
 
 
