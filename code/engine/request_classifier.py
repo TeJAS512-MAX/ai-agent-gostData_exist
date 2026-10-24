@@ -42,9 +42,15 @@ class RequestClassifier:
         "update my shipping",
         "update my billing",
         "unsubscribe from",
+        "cancel the deletion request",
+        "cancel my deletion request",
+        "withdraw my deletion request",
+        "stop the deletion",
+        "cancel deletion",
     ]
 
     NEGATION_REGEXES = [
+        re.compile(r"\b(?:cancel|withdraw|stop|abort)\s+(?:the\s+|my\s+)?deletion\s+request\b", re.I),
         re.compile(r"\b(?:do\s+not|don't|dont|never|please\s+do\s+not)\s+(?:delete|erase|remove|close|purge|shut\s+down)\b", re.I),
         re.compile(r"\b(?:do\s+not|don't|dont)\s+want\s+(?:my\s+)?(?:account|profile|data)\s+(?:to\s+be\s+)?(?:deleted|erased|removed|closed)\b", re.I),
         re.compile(r"\b(?:keep|leave)\s+(?:my\s+|the\s+)?(?:account|profile|service)\s+(?:active|intact|open|in\s+place)\b", re.I),

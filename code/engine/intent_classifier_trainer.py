@@ -354,6 +354,100 @@ def load_custom_dataset(filepath: str, max_non_del: int = 5000) -> List[Dict]:
     return items
 
 
+
+def load_downloaded_problem_datasets(download_dir: Optional[str] = None) -> List[Dict]:
+    """
+    Ingests all external real-world problem-statement datasets downloaded from Hugging Face and GitHub:
+      1. UK GDPR QA (Draeg82: 1,000 real compliance/erasure scenarios)
+      2. PolyAI Banking77 (13,083 customer support turns: account termination, rectification, identity, passwords)
+      3. AndreaSimeri GDPR Articles (661 legal sections: Article 17 erasure vs Other Rights)
+      4. sims2k GDPR QA Instruct (316 EDPB compliance pairs)
+      5. CLINC150 (Account freezing, settings, cancellation turns)
+    """
+    download_dir = download_dir or os.path.join(ROOT, "downloaded_datasets")
+    items = []
+    if not os.path.exists(download_dir):
+        return items
+
+    # 1. UK GDPR QA
+    uk_path = os.path.join(download_dir, "uk_gdpr_qa.jsonl")
+    if os.path.exists(uk_path):
+        with open(uk_path, "r", encoding="utf-8") as f:
+            for line in f:
+                if line.strip():
+                    obj = json.loads(line)
+                    q = obj.get("question", "").strip()
+                    a = obj.get("answer", "").strip()
+                    is_erasure = any(k in q.lower() or k in a.lower() for k in [
+                        "right to erasure", "right to be forgotten", "article 17", "delete my data", 
+                        "erasure request", "erasing customer data", "delete personal data"
+                    ])
+                    items.append({
+                        "text": q,
+                        "label": 1 if is_erasure else 0,
+                        "mode": 1 if is_erasure else 0,
+                        "dataset_source": "Dataset_H_UK_GDPR_Erasure" if is_erasure else "Dataset_H_UK_GDPR_DSAR"
+                    })
+
+    # 2. Banking77
+    for p in [os.path.join(download_dir, "banking77_train.csv"), os.path.join(download_dir, "banking77_test.csv")]:
+        if os.path.exists(p):
+            df = pd.read_csv(p)
+            for _, r in df.iterrows():
+                cat = r.get("category", "")
+                txt = str(r.get("text", "")).strip()
+                if not txt:
+                    continue
+                if cat == "terminate_account":
+                    for _ in range(5):
+                        items.append({"text": txt, "label": 1, "mode": 1, "dataset_source": "Dataset_H_Banking77_Terminate"})
+                elif cat in ["edit_personal_details", "why_verify_identity", "verify_my_identity", "passcode_forgotten", "request_refund"]:
+                    items.append({"text": txt, "label": 0, "mode": 0, "dataset_source": f"Dataset_H_Banking77_{cat}"})
+
+    # 3. GDPR Articles
+    art_path = os.path.join(download_dir, "gdpr_articles.csv")
+    if os.path.exists(art_path):
+        df_art = pd.read_csv(art_path)
+        for _, r in df_art.iterrows():
+            aid = str(r.get("article_id", "")).lower()
+            txt = str(r.get("article_text", "")).strip()
+            if not txt:
+                continue
+            if "article17" in aid:
+                for chunk in txt.split("."):
+                    if len(chunk.strip()) > 20:
+                        for _ in range(3):
+                            items.append({"text": chunk.strip(), "label": 1, "mode": 1, "dataset_source": "Dataset_H_GDPR_Art17"})
+            elif aid in ["article15", "article16", "article18", "article20", "article21"]:
+                for chunk in txt.split("."):
+                    if len(chunk.strip()) > 20:
+                        items.append({"text": chunk.strip(), "label": 0, "mode": 0, "dataset_source": f"Dataset_H_GDPR_{aid}"})
+
+    # 4. sims2k GDPR QA Instruct
+    sims_path = os.path.join(download_dir, "gdpr_qa_instruct.parquet")
+    if os.path.exists(sims_path):
+        df_sims = pd.read_parquet(sims_path)
+        for _, r in df_sims.iterrows():
+            instr = str(r.get("instruction", "")).strip()
+            inp = str(r.get("input", "")).strip()
+            txt = f"{instr} {inp}".strip()
+            is_erasure = any(k in txt.lower() for k in ["erasure", "delete", "forgotten", "article 17"])
+            items.append({"text": txt, "label": 1 if is_erasure else 0, "mode": 1 if is_erasure else 0, "dataset_source": "Dataset_H_sims2k_GDPR"})
+
+    # 5. CLINC150 maintenance & cancellation
+    clinc_path = os.path.join(download_dir, "clinc150_full.json")
+    if os.path.exists(clinc_path):
+        with open(clinc_path, "r", encoding="utf-8") as f:
+            cd = json.load(f)
+        for split in ["train", "test"]:
+            for q, intent in cd.get(split, []):
+                if intent in ["freeze_account", "account_blocked", "reset_settings", "change_user_name", "pin_change"]:
+                    items.append({"text": q, "label": 0, "mode": 0, "dataset_source": f"Dataset_H_CLINC_{intent}"})
+
+    logger.info("Loaded %d items from downloaded problem datasets", len(items))
+    return items
+
+
 def build_multi_dataset_corpus(
     dataset_dir: str = DATASET_DIR,
     custom_data_paths: Optional[List[str]] = None,
@@ -384,7 +478,7 @@ def build_multi_dataset_corpus(
                 txt = str(row.get("request_text", "")).strip()
                 st = str(row.get("deletion_status", "")).strip()
                 lbl = 0 if st == "NOT_APPLICABLE" else 1
-                for _ in range(10):
+                for _ in range(25):
                     corpus.append({
                         "text": txt,
                         "label": lbl,
@@ -409,13 +503,14 @@ def build_multi_dataset_corpus(
                 "dataset_source": "Dataset_C_DSAR_NonDeletion",
             })
 
-        # 4. Adversarial Negations (Dataset D)
+        # 4. Adversarial Negations (Dataset D - 25x anchored)
         for item in DATASET_ADVERSARIAL_NEGATIONS:
-            corpus.append({
-                "text": item["text"],
-                "label": item["label"],
-                "dataset_source": "Dataset_D_Adversarial_Negations",
-            })
+            for _ in range(25):
+                corpus.append({
+                    "text": item["text"],
+                    "label": item["label"],
+                    "dataset_source": "Dataset_D_Adversarial_Negations",
+                })
 
         # 5. Account Maintenance Inquiries (Dataset E)
         for item in DATASET_ACCOUNT_MAINTENANCE:
@@ -433,15 +528,19 @@ def build_multi_dataset_corpus(
                 "dataset_source": "Dataset_F_Multi_Domain",
             })
 
-        # 7. Algorithmic Innovations (Dataset G - 10x anchored)
+        # 7. Algorithmic Innovations (Dataset G - 25x anchored)
         for item in DATASET_ALGORITHMIC_INNOVATIONS:
-            for _ in range(10):
+            for _ in range(25):
                 corpus.append({
                     "text": item["text"],
                     "label": item["label"],
                     "mode": item.get("mode", 1),
                     "dataset_source": f"Dataset_G_Algorithmic_{item.get('innovation', 'Innovation')}",
                 })
+
+        # 8. Downloaded External Real-World Problem Datasets (Dataset H)
+        downloaded_items = load_downloaded_problem_datasets()
+        corpus.extend(downloaded_items)
 
     # Save complete corpus to disk for inspection and auditability
     corpus_path = os.path.join(MODEL_DIR, "multi_dataset_corpus.json")
@@ -573,6 +672,10 @@ def train_cognitive_mode_model(output_path: Optional[str] = None) -> Pipeline:
         mode_samples.append((item["text"], 0))
     for item in DATASET_MULTILINGUAL_DELETION:
         mode_samples.append((item["text"], 1))
+
+    # Ingest downloaded problem datasets into cognitive mode training
+    for item in load_downloaded_problem_datasets():
+        mode_samples.append((item["text"], item.get("mode", 0)))
 
     X_mode = np.array([t for t, m in mode_samples])
     y_mode = np.array([m for t, m in mode_samples])
@@ -812,3 +915,4 @@ if __name__ == "__main__":
 
     # 2. Train specialized cognitive mode classifier on the 4 algorithmic innovations
     train_cognitive_mode_model()
+

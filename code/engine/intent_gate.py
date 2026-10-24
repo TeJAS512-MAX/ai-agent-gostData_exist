@@ -65,6 +65,11 @@ _NON_DELETION_PATTERNS: list[str] = [
     "data portability",
     "export my data",
     "download my data",
+    "cancel the deletion request",
+    "cancel my deletion request",
+    "withdraw my deletion request",
+    "stop the deletion",
+    "cancel deletion",
     # Password / shipping / billing non-deletion verbs
     "reset my password",
     "update my shipping",
