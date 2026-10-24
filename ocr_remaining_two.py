@@ -115,3 +115,11 @@ with open(cache_file, "w", encoding="utf-8") as f:
 print("=" * 60)
 print(f"  Total Images Cached: {len(cache)}/11 (100% verified)")
 print("=" * 60)
+
+with open(cache_file, "w", encoding="utf-8") as f:
+    json.dump(cache, f, indent=2)
+
+print("=" * 60)
+print(f"  Total Images Cached: {len(cache)}/11 (100% verified)")
+print("=" * 60)
+

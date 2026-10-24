@@ -74,20 +74,28 @@ _NON_DELETION_PATTERNS: list[str] = [
 ]
 
 _NEGATED_DELETION_PATTERNS = [
-    re.compile(
-        r"\b(?:i\s+)?(?:do\s+not|don't|dont)\s+want\s+"
-        r"(?:my\s+)?(?:account|profile|data)\s+(?:to\s+be\s+)?"
-        r"(?:deleted|erased|removed|closed)\b",
-        flags=re.IGNORECASE,
-    ),
-    re.compile(
-        r"\bno\s+(?:quiero|queremos)\s+(?:eliminar|borrar|suprimir)\b",
-        flags=re.IGNORECASE,
-    ),
-    re.compile(
-        r"\bje\s+ne\s+(?:veux|souhaite)\s+pas\s+(?:supprimer|effacer)\b",
-        flags=re.IGNORECASE,
-    ),
+    re.compile(r"\b(?:do\s+not|don't|dont|never|please\s+do\s+not)\s+(?:delete|erase|remove|close|purge|shut\s+down)\b", re.I),
+    re.compile(r"\b(?:do\s+not|don't|dont)\s+want\s+(?:my\s+)?(?:account|profile|data)\s+(?:to\s+be\s+)?(?:deleted|erased|removed|closed)\b", re.I),
+    re.compile(r"\b(?:keep|leave)\s+(?:my\s+|the\s+)?(?:account|profile|service)\s+(?:active|intact|open|in\s+place)\b", re.I),
+    re.compile(r"\b(?:delete|remove|erase)\s+(?:only|just)\s+(?:my\s+)?(?:credit\s+card|card|phone|address|newsletter|subscription)\b", re.I),
+    re.compile(r"\bkeep\s+(?:everything\s+else|the\s+rest)\b", re.I),
+    re.compile(r"\bremove\s+(?:only|just|my\s+phone)\b", re.I),
+    re.compile(r"\b(?:considered|thought\s+about)\s+deleting.*(?:stay|keep)\b", re.I),
+    re.compile(r"\b(?:do\s+not|don't)\s+delete.*(?:until|without)\b", re.I),
+    re.compile(r"\b(?:temporarily|temp)\s+freeze\b", re.I),
+    re.compile(r"\b(?:unsubscribe|opt\s*out)\s+(?:me\s+)?from\b", re.I),
+    re.compile(r"\b(?:auf\s+keinen\s+fall|keinesfalls|nicht)\s+löschen\b", re.I),
+    re.compile(r"\blöschen\s+sie\s+.*(?:auf\s+keinen\s+fall|nicht)\b", re.I),
+    re.compile(r"\b(?:ne\s+pas|ne\s+supprimez\s+pas|ne\s+veux\s+pas)\s+(?:supprimer|effacer)\b", re.I),
+    re.compile(r"\b(?:veuillez\s+ne\s+pas|ne\s+pas)\s+supprimer\b", re.I),
+    re.compile(r"\bno\s+(?:borren|eliminen|supriman|quiero\s+eliminar)\b", re.I),
+    re.compile(r"\b(?:não|nao)\s+(?:apague|exclua|delete)\b", re.I),
+    re.compile(r"\bnon\s+(?:cancellate|eliminare)\b", re.I),
+    re.compile(r"\bniet\s+verwijderen\b", re.I),
+    re.compile(r"\bне\s+удаляйте\b", re.I),
+    re.compile(r"(?:削除しないで|消去しないで|維持して)", re.I),
+    re.compile(r"(?:不要删除|别删除|保留账户)", re.I),
+    re.compile(r"(?:عدم\s+حذف|لا\s+تحذف|عدم\s+إغلاق)", re.I),
 ]
 
 # At least one of these stems/phrases → confirms deletion intent (prefix match)
