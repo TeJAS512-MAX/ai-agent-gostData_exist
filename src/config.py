@@ -14,7 +14,7 @@ class Config:
     TRANSCRIPT_PATH: Path = ROOT_DIR / os.getenv("TRANSCRIPT_PATH", "outputs/chat_transcript.md")
     
     DEFAULT_LLM_PROVIDER: str = os.getenv("DEFAULT_LLM_PROVIDER", "google").lower()
-    DEFAULT_MODEL: str = os.getenv("DEFAULT_MODEL", "gemini/gemini-2.5-flash")
+    DEFAULT_MODEL: str = os.getenv("DEFAULT_MODEL", "gemini/gemini-3.8-flash")
     TEMPERATURE: float = float(os.getenv("TEMPERATURE", "0.0"))
     MAX_RETRIES: int = int(os.getenv("MAX_RETRIES", "3"))
     TIMEOUT_SECONDS: int = int(os.getenv("TIMEOUT_SECONDS", "30"))
@@ -29,7 +29,7 @@ class Config:
     def get_active_model(cls) -> str:
         """Determines best active model based on available API keys."""
         if cls.GEMINI_API_KEY and not cls.GEMINI_API_KEY.startswith("your_"):
-            return "gemini/gemini-2.5-flash"
+            return "gemini/gemini-3.8-flash"
         if cls.GROQ_API_KEY and not cls.GROQ_API_KEY.startswith("your_"):
             return "groq/llama-3.3-70b-versatile"
         if cls.OPENAI_API_KEY and not cls.OPENAI_API_KEY.startswith("your_"):

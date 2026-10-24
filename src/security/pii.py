@@ -35,3 +35,4 @@ class PIIRedactor:
             redacted = CREDIT_CARD_PATTERN.sub("[REDACTED_CARD_NUMBER]", redacted)
 
         return redacted, findings
+

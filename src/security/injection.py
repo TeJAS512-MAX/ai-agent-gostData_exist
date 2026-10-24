@@ -98,3 +98,4 @@ class InjectionDetector:
         is_safe = len(detected_vectors) == 0
 
         return is_safe, sorted(list(detected_vectors)), round(threat_score, 2)
+
