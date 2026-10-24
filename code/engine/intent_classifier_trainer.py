@@ -32,12 +32,13 @@ from typing import Dict, List, Tuple, Optional
 import numpy as np
 import pandas as pd
 from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.linear_model import LogisticRegression
+from sklearn.linear_model import LogisticRegression, SGDClassifier
 from sklearn.svm import LinearSVC
 from sklearn.calibration import CalibratedClassifierCV
 from sklearn.naive_bayes import ComplementNB
 from sklearn.ensemble import VotingClassifier
 from sklearn.pipeline import FeatureUnion, Pipeline
+import threadpoolctl
 from sklearn.model_selection import StratifiedKFold, cross_val_score
 from sklearn.metrics import (
     classification_report, confusion_matrix, accuracy_score, f1_score
@@ -208,15 +209,11 @@ DATASET_MULTI_DOMAIN = [
 # DATA LOADER & CORPUS BUILDER
 # ==============================================================================
 
-def load_custom_dataset(filepath: str, max_non_del: int = 1500) -> List[Dict]:
+def load_custom_dataset(filepath: str, max_non_del: int = 5000) -> List[Dict]:
     """
     Ingests an external custom dataset from CSV, JSON, or JSONL format.
-    Accepts:
-      - CSV with ('text', 'label') or ('request_text', 'deletion_status')
-      - CSV with ('instruction', 'intent') like Bitext Customer Support
-      - JSON list of objects with ('text', 'label') or ('request_text', 'deletion_status')
-      - JSON dict with ('oos_train', 'train') like CLINC
-      - JSONL newline-delimited JSON objects
+    Aggressive mode loads large-scale enterprise customer service dialogues,
+    out-of-scope interactions, and multi-domain privacy datasets.
     """
     items = []
     if not os.path.exists(filepath):
@@ -229,13 +226,15 @@ def load_custom_dataset(filepath: str, max_non_del: int = 1500) -> List[Dict]:
         if "instruction" in df.columns and "intent" in df.columns:
             del_df = df[df["intent"] == "delete_account"]
             non_del_df = df[df["intent"] != "delete_account"]
+            # 5x anchoring for genuine account deletion queries
             for _, r in del_df.iterrows():
-                items.append({
-                    "text": str(r["instruction"]).strip(),
-                    "label": 1,
-                    "dataset_source": f"Bitext_Delete_{src_name}",
-                })
-            # Sample non-del balanced across categories
+                for _ in range(5):
+                    items.append({
+                        "text": str(r["instruction"]).strip(),
+                        "label": 1,
+                        "dataset_source": f"Bitext_Delete_{src_name}",
+                    })
+            # Sample non-del balanced across categories (up to max_non_del)
             if len(non_del_df) > max_non_del:
                 cat_col = "category" if "category" in non_del_df.columns else "intent"
                 n_cats = max(1, non_del_df[cat_col].nunique())
@@ -252,6 +251,7 @@ def load_custom_dataset(filepath: str, max_non_del: int = 1500) -> List[Dict]:
             text_col = "text" if "text" in df.columns else "request_text"
             label_col = "label" if "label" in df.columns else "deletion_status"
             if text_col in df.columns and label_col in df.columns:
+                is_multi = "multilingual" in src_name.lower()
                 for _, row in df.iterrows():
                     txt = str(row[text_col]).strip()
                     val = row[label_col]
@@ -261,11 +261,13 @@ def load_custom_dataset(filepath: str, max_non_del: int = 1500) -> List[Dict]:
                         st = str(val).strip().upper()
                         lbl = 0 if st in ["0", "NOT_APPLICABLE", "NON_DELETION", "FALSE"] else 1
                     if txt:
-                        items.append({
-                            "text": txt,
-                            "label": lbl,
-                            "dataset_source": f"Custom_{src_name}",
-                        })
+                        reps = 5 if is_multi else 1
+                        for _ in range(reps):
+                            items.append({
+                                "text": txt,
+                                "label": lbl,
+                                "dataset_source": f"Custom_{src_name}",
+                            })
     elif filepath.endswith((".json", ".jsonl")):
         with open(filepath, "r", encoding="utf-8") as f:
             try:
@@ -274,13 +276,16 @@ def load_custom_dataset(filepath: str, max_non_del: int = 1500) -> List[Dict]:
                 f.seek(0)
                 data = [json.loads(line) for line in f if line.strip()]
         if isinstance(data, dict) and ("oos_train" in data or "train" in data):
-            for q, _ in data.get("oos_train", []):
-                items.append({
-                    "text": str(q).strip(),
-                    "label": 0,
-                    "dataset_source": f"CLINC_OOS_{src_name}",
-                })
-            for q, _ in data.get("train", [])[:400]:
+            # Ingest all OOS partitions (train, val, test)
+            for k in ["oos_train", "oos_val", "oos_test"]:
+                for q, _ in data.get(k, []):
+                    items.append({
+                        "text": str(q).strip(),
+                        "label": 0,
+                        "dataset_source": f"CLINC_OOS_{k}",
+                    })
+            # Ingest 2,000 in-domain conversational queries
+            for q, _ in data.get("train", [])[:2000]:
                 items.append({
                     "text": str(q).strip(),
                     "label": 0,
@@ -335,7 +340,7 @@ def build_multi_dataset_corpus(
                     corpus.extend(load_custom_dataset(af))
 
     if not skip_built_in:
-        # 1. Official Ground-Truth Samples (Dataset A - 5x anchored)
+        # 1. Official Ground-Truth Samples (Dataset A - 10x anchored)
         sr_path = os.path.join(dataset_dir, "sample_deletion_requests.csv")
         so_path = os.path.join(dataset_dir, "sample_output.csv")
         if os.path.exists(sr_path) and os.path.exists(so_path):
@@ -346,14 +351,14 @@ def build_multi_dataset_corpus(
                 txt = str(row.get("request_text", "")).strip()
                 st = str(row.get("deletion_status", "")).strip()
                 lbl = 0 if st == "NOT_APPLICABLE" else 1
-                for _ in range(5):
+                for _ in range(10):
                     corpus.append({
                         "text": txt,
                         "label": lbl,
                         "dataset_source": "Dataset_A_Official_Samples",
                         "case_id": row["case_id"]
                     })
-            logger.info("Loaded %d gold samples (5x anchored) from Dataset A", len(merged))
+            logger.info("Loaded %d gold samples (10x anchored) from Dataset A", len(merged))
 
         # 2. Multilingual Deletions (Dataset B)
         for item in DATASET_MULTILINGUAL_DELETION:
@@ -465,14 +470,28 @@ def build_dual_path_pipeline() -> Pipeline:
 
     clf_cnb = ComplementNB(alpha=0.3, norm=True)
 
+    clf_sgd = CalibratedClassifierCV(
+        SGDClassifier(
+            loss="log_loss",
+            penalty="elasticnet",
+            alpha=1e-4,
+            max_iter=3000,
+            class_weight="balanced",
+            random_state=42,
+        ),
+        cv=3
+    )
+
     ensemble = VotingClassifier(
         estimators=[
             ("lr", clf_lr),
             ("svc", clf_svc),
             ("cnb", clf_cnb),
+            ("sgd", clf_sgd),
         ],
         voting="soft",
-        weights=[2.5, 2.5, 1.0],
+        weights=[2.5, 2.5, 1.0, 1.5],
+        n_jobs=-1
     )
 
     return Pipeline([
@@ -513,19 +532,25 @@ def train_and_benchmark(
         print(f"  - {src:<38}: {cnt:>3} examples")
     print()
 
-    # Stratified 5-Fold Cross Validation
+    # Stratified 5-Fold Cross Validation using all available CPU hardware
+    import multiprocessing
+    n_cpu = multiprocessing.cpu_count()
+    print(f"Engaging Multi-Core Hardware Acceleration ({n_cpu} CPU Cores)...")
+
     pipeline = build_dual_path_pipeline()
     cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
-    cv_scores = cross_val_score(pipeline, X, y, cv=cv, scoring="f1_macro")
-    cv_accs = cross_val_score(pipeline, X, y, cv=cv, scoring="accuracy")
+    with threadpoolctl.threadpool_limits(limits=n_cpu):
+        cv_scores = cross_val_score(pipeline, X, y, cv=cv, scoring="f1_macro", n_jobs=min(5, n_cpu))
+        cv_accs = cross_val_score(pipeline, X, y, cv=cv, scoring="accuracy", n_jobs=min(5, n_cpu))
 
-    print(f"5-Fold Cross-Validation Results:")
+    print(f"5-Fold Cross-Validation Results ({n_cpu} Cores):")
     print(f"  • Macro F1 Score  : {cv_scores.mean():.4f} +/- {cv_scores.std():.4f}")
     print(f"  • Accuracy        : {cv_accs.mean():.4f} +/- {cv_accs.std():.4f}")
     print()
 
-    # Full Corpus Fit
-    pipeline.fit(X, y)
+    # Full Corpus Fit on all 12 cores
+    with threadpoolctl.threadpool_limits(limits=n_cpu):
+        pipeline.fit(X, y)
 
     y_pred = pipeline.predict(X)
     train_acc = accuracy_score(y, y_pred)

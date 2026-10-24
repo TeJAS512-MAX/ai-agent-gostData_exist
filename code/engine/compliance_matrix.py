@@ -167,3 +167,4 @@ class ContractInvariantVerifier:
                     violations.append(f"{case_id}: Proposed {phase} step must have empty evidence_id, got '{ev}'")
 
         return len(violations) == 0, violations
+

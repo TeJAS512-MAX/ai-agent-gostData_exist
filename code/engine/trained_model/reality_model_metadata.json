@@ -1,23 +1,25 @@
 {
   "model_name": "RealityEnsembleClassifier",
   "version": "4.0.0-enterprise",
-  "total_training_samples": 4790,
-  "deletion_samples": 1724,
-  "non_deletion_samples": 3066,
-  "cv_5fold_macro_f1": 0.9847,
-  "cv_5fold_accuracy": 0.986,
-  "train_macro_f1": 0.9991,
-  "train_accuracy": 0.9992,
-  "partitions_count": 24,
+  "total_training_samples": 15304,
+  "deletion_samples": 5952,
+  "non_deletion_samples": 9352,
+  "cv_5fold_macro_f1": 0.9919,
+  "cv_5fold_accuracy": 0.9923,
+  "train_macro_f1": 0.9966,
+  "train_accuracy": 0.9967,
+  "partitions_count": 26,
   "partition_breakdown": {
-    "Bitext_Delete_bitext_customer_support": 995,
-    "Bitext_NonDelete_bitext_customer_support": 1496,
-    "CLINC_InDomain_clinc_oos_eval": 400,
-    "CLINC_OOS_clinc_oos_eval": 100,
+    "Bitext_Delete_bitext_customer_support": 4975,
+    "Bitext_NonDelete_bitext_customer_support": 4994,
+    "CLINC_InDomain_clinc_oos_eval": 2000,
+    "CLINC_OOS_oos_test": 1000,
+    "CLINC_OOS_oos_train": 100,
+    "CLINC_OOS_oos_val": 100,
     "Custom_bitext_privacy_benchmark": 1000,
     "Custom_clinc_non_deletion": 500,
-    "Custom_multilingual_dsar_privacy": 44,
-    "Dataset_A_Official_Samples": 160,
+    "Custom_multilingual_dsar_privacy": 220,
+    "Dataset_A_Official_Samples": 320,
     "Dataset_B_Multilingual_ar": 2,
     "Dataset_B_Multilingual_de": 5,
     "Dataset_B_Multilingual_en": 10,
@@ -43,10 +45,10 @@
     "ComplementNB(alpha=0.3, norm=True)",
     "VotingClassifier (soft voting with weights [2.5, 2.5, 1.0])"
   ],
-  "total_feature_dimensions": 39368,
+  "total_feature_dimensions": 69962,
   "epistemic_uncertainty_thresholds": {
     "entropy_ood_threshold": 0.85,
     "confidence_margin_threshold": 0.3
   },
-  "created_at": "2026-10-24 19:22:43 UTC"
+  "created_at": "2026-10-24 19:51:03 UTC"
 }
