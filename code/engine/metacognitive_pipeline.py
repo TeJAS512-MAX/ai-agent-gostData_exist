@@ -11,7 +11,7 @@ and counterfactual causal reasoning:
 Key Algorithms & Architectural Innovations:
   1. Epistemic Meta-Cognitive Governor (Self-Call Arbitration):
      - Dynamically evaluates epistemic uncertainty (Shannon Entropy, Graph Completeness,
-       and Lineage Ambiguity Index) to autonomously arbitrate between:
+       and Lineage Ambiguity Index) and ML Cognitive Mode predictions to autonomously arbitrate between:
        * SYSTEM_1_REFLEX: Microsecond deterministic execution for high-certainty cases.
        * SYSTEM_2_DELIBERATION: Multi-hypothesis tree search (MCTS-IB) for cascading dependencies.
        * SYSTEM_3_ACTIVE_PROBE: Deep multimodal evidence triangulation for ambiguous states.
@@ -26,6 +26,7 @@ Key Algorithms & Architectural Innovations:
 
 import math
 import hashlib
+import os
 import time
 from enum import Enum
 from dataclasses import dataclass, field
@@ -68,11 +69,28 @@ class MetaCognitiveGovernor:
     Autonomous Self-Call Controller.
     Decides HOW the AI agent should think before executing actions.
     Eliminates rigid static pipelines by dynamically routing to optimal cognitive strategies.
+    Combines formal information-theoretic metrics with trained ML Cognitive Mode models.
     """
 
     def __init__(self, confidence_threshold: float = 0.92, deliberation_threshold: float = 0.80):
         self.conf_threshold = confidence_threshold
         self.delib_threshold = deliberation_threshold
+        self._ml_mode_model = None
+        self._load_mode_model()
+
+    def _load_mode_model(self):
+        try:
+            cand_paths = [
+                os.path.join(os.path.dirname(__file__), "trained_model", "cognitive_mode_classifier.joblib"),
+                os.path.join("code", "engine", "trained_model", "cognitive_mode_classifier.joblib"),
+            ]
+            for p in cand_paths:
+                if os.path.exists(p):
+                    import joblib
+                    self._ml_mode_model = joblib.load(p)
+                    break
+        except Exception:
+            self._ml_mode_model = None
 
     def evaluate_epistemic_state(
         self,
@@ -116,24 +134,51 @@ class MetaCognitiveGovernor:
         )
         joint_conf = round(max(0.01, min(0.999, joint_conf)), 4)
 
+        # 5. Check ML Model Guidance (if model is loaded)
+        ml_suggested_mode = None
+        if self._ml_mode_model is not None and request_text:
+            try:
+                pred_mode_idx = int(self._ml_mode_model.predict([request_text])[0])
+                mode_map = {
+                    0: CognitiveMode.SYSTEM_3_ACTIVE_PROBE if norm_entropy > 0.85 else CognitiveMode.SYSTEM_1_REFLEX,
+                    1: CognitiveMode.SYSTEM_1_REFLEX,
+                    2: CognitiveMode.SYSTEM_2_DELIBERATION,
+                    3: CognitiveMode.SYSTEM_3_ACTIVE_PROBE,
+                }
+                ml_suggested_mode = mode_map.get(pred_mode_idx)
+            except Exception:
+                ml_suggested_mode = None
+
         # Autonomous Self-Call Decision
-        if joint_conf >= self.conf_threshold and not statutory_hold_active:
+        if statutory_hold_active:
+            mode = CognitiveMode.SYSTEM_2_DELIBERATION
+            rationale = (
+                f"Statutory regulatory hold detected in request text. "
+                "Engaged Monte Carlo Tree Search (MCTS-IB) for causal dependency ordering."
+            )
+        elif ml_suggested_mode == CognitiveMode.SYSTEM_2_DELIBERATION:
+            mode = CognitiveMode.SYSTEM_2_DELIBERATION
+            rationale = (
+                f"Trained meta-cognitive classifier identified multi-system dependency risk. "
+                "Engaged Monte Carlo Tree Search (MCTS-IB) for causal dependency ordering."
+            )
+        elif ml_suggested_mode == CognitiveMode.SYSTEM_3_ACTIVE_PROBE or joint_conf < self.delib_threshold:
+            mode = CognitiveMode.SYSTEM_3_ACTIVE_PROBE
+            rationale = (
+                f"Epistemic ambiguity or multimodal re-entrancy required (entropy H={norm_entropy:.3f}, conf={joint_conf*100:.1f}%). "
+                "Spawned deep multimodal evidence triangulation with active verification probes."
+            )
+        elif joint_conf >= self.conf_threshold or ml_suggested_mode == CognitiveMode.SYSTEM_1_REFLEX:
             mode = CognitiveMode.SYSTEM_1_REFLEX
             rationale = (
                 f"Epistemic confidence {joint_conf*100:.1f}% exceeds threshold ({self.conf_threshold*100:.0f}%). "
                 "Dispatched to deterministic microsecond symbolic solver."
             )
-        elif joint_conf >= self.delib_threshold or statutory_hold_active:
+        else:
             mode = CognitiveMode.SYSTEM_2_DELIBERATION
             rationale = (
-                f"Moderate confidence {joint_conf*100:.1f}% or regulatory conflict detected. "
+                f"Moderate confidence {joint_conf*100:.1f}%. "
                 "Engaged Monte Carlo Tree Search (MCTS-IB) for causal dependency ordering."
-            )
-        else:
-            mode = CognitiveMode.SYSTEM_3_ACTIVE_PROBE
-            rationale = (
-                f"Low epistemic confidence {joint_conf*100:.1f}% (high entropy or dangling lineage). "
-                "Spawned deep multimodal evidence triangulation with active verification probes."
             )
 
         return EpistemicState(
@@ -284,4 +329,3 @@ class MCTSRemediationScheduler:
             final_steps.append(cloned)
 
         return final_steps
-
