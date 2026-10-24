@@ -1,37 +1,37 @@
 Northstar Shop — Intent Classifier Training Report
 ============================================================
 
-Total examples     : 662
-  NOT_APPLICABLE   : 47
-  DELETION         : 615
+Total examples     : 112
+  NOT_APPLICABLE   : 40
+  DELETION         : 72
 
-5-Fold CV F1       : 0.9292 ± 0.0205
-Train Accuracy     : 0.9924
-Train Macro F1     : 0.9727
+5-Fold CV F1       : 0.8762 ± 0.0936
+Train Accuracy     : 1.0000
+Train Macro F1     : 1.0000
 
 Confusion Matrix (rows=actual, cols=pred):
   Labels: NOT_APPLICABLE=0, DELETION=1
-[[ 47   0]
- [  5 610]]
+[[40  0]
+ [ 0 72]]
 
 Classification Report:
                 precision    recall  f1-score   support
 
-NOT_APPLICABLE       0.90      1.00      0.95        47
-      DELETION       1.00      0.99      1.00       615
+NOT_APPLICABLE       1.00      1.00      1.00        40
+      DELETION       1.00      1.00      1.00        72
 
-      accuracy                           0.99       662
-     macro avg       0.95      1.00      0.97       662
-  weighted avg       0.99      0.99      0.99       662
+      accuracy                           1.00       112
+     macro avg       1.00      1.00      1.00       112
+  weighted avg       1.00      1.00      1.00       112
 
 Sample Predictions:
-  ✗ [NOT_APPLICABLE] p=0.351 | Please delete my account.
-  ✓ [      DELETION] p=0.602 | I want to erase all my data.
-  ✓ [NOT_APPLICABLE] p=0.017 | Please keep my account active. Update my address.
-  ✓ [NOT_APPLICABLE] p=0.115 | Under GDPR Article 15 I request my data copy.
-  ✓ [      DELETION] p=0.783 | Close this account permanently.
-  ✓ [      DELETION] p=0.692 | I want to close this account permanently.
-  ✗ [NOT_APPLICABLE] p=0.478 | Ich möchte mein Konto löschen.
-  ✓ [NOT_APPLICABLE] p=0.110 | Please update my billing details only.
-  ✓ [      DELETION] p=0.607 | Erase my profile from all your systems.
-  ✓ [NOT_APPLICABLE] p=0.052 | Can I unsubscribe from marketing only? Keep account.
+  ✗ [NOT_APPLICABLE] p=0.454 | Please delete my account.
+  ✓ [      DELETION] p=0.770 | I want to erase all my data.
+  ✓ [NOT_APPLICABLE] p=0.107 | Please keep my account active. Update my address.
+  ✓ [NOT_APPLICABLE] p=0.410 | Under GDPR Article 15 I request my data copy.
+  ✓ [      DELETION] p=0.761 | Close this account permanently.
+  ✓ [      DELETION] p=0.710 | I want to close this account permanently.
+  ✓ [      DELETION] p=0.596 | Ich möchte mein Konto löschen.
+  ✓ [NOT_APPLICABLE] p=0.309 | Please update my billing details only.
+  ✓ [      DELETION] p=0.752 | Erase my profile from all your systems.
+  ✓ [NOT_APPLICABLE] p=0.178 | Can I unsubscribe from marketing only? Keep account.

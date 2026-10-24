@@ -7,7 +7,7 @@ account-deletion was requested.
 Strategy:
   Stage 1A (0-Token Regex)  -- deterministic keyword / negative-constraint patterns.
   Stage 1B (Trained ML)     -- TF-IDF + Logistic Regression classifier trained on
-                               518 labelled examples + 80 synthetic examples.
+                               public labelled samples + synthetic examples.
                                Loaded from code/engine/trained_model/intent_classifier.joblib.
   Stage 1C (LLM Fallback)   -- invoked ONLY if both 1A and 1B are inconclusive.
                                Requires OPENROUTER_API_KEY or GEMINI_API_KEY env var.
@@ -73,6 +73,23 @@ _NON_DELETION_PATTERNS: list[str] = [
     "unsubscribe from",
 ]
 
+_NEGATED_DELETION_PATTERNS = [
+    re.compile(
+        r"\b(?:i\s+)?(?:do\s+not|don't|dont)\s+want\s+"
+        r"(?:my\s+)?(?:account|profile|data)\s+(?:to\s+be\s+)?"
+        r"(?:deleted|erased|removed|closed)\b",
+        flags=re.IGNORECASE,
+    ),
+    re.compile(
+        r"\bno\s+(?:quiero|queremos)\s+(?:eliminar|borrar|suprimir)\b",
+        flags=re.IGNORECASE,
+    ),
+    re.compile(
+        r"\bje\s+ne\s+(?:veux|souhaite)\s+pas\s+(?:supprimer|effacer)\b",
+        flags=re.IGNORECASE,
+    ),
+]
+
 # At least one of these stems/phrases → confirms deletion intent (prefix match)
 _DELETION_STEMS: list[str] = [
     "delet",       # delete / deletion / deleting
@@ -124,6 +141,8 @@ def _stage1a(request_text: str) -> Optional[str]:
     for pat in _NON_DELETION_PATTERNS:
         if pat in lower:
             return "NOT_APPLICABLE"
+    if any(pattern.search(text) for pattern in _NEGATED_DELETION_PATTERNS):
+        return "NOT_APPLICABLE"
 
     # Explicit deletion keywords
     if _DELETION_REGEX.search(text):
@@ -200,7 +219,7 @@ class IntentGate:
     """
     Stage 1: Intent classification with 3-tier pipeline:
       1A — 0-token regex (deterministic, instant)
-      1B — Trained TF-IDF + LR classifier (99.2% train accuracy, 92.9% CV F1)
+      1B — Trained TF-IDF + LR classifier
       1C — LLM micro-classifier (only for low-confidence ambiguous text)
     """
 

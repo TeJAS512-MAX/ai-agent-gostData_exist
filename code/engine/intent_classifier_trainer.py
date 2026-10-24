@@ -5,11 +5,9 @@ Trains and evaluates a lightweight TF-IDF + Logistic Regression classifier
 for Stage 1B of the NSTVE Intent Gate.
 
 The classifier is trained on:
-  1. The 518 labelled deletion requests from deletion_requests.csv + output.csv
-     (silver-label: if deletion_status != NOT_APPLICABLE → DELETION intent)
-  2. Synthetically-augmented NOT_APPLICABLE examples generated from known patterns.
-  3. The 32 golden sample cases (gold-label) from sample_deletion_requests.csv +
+  1. The labelled public examples from sample_deletion_requests.csv +
      sample_output.csv.
+  2. Synthetic examples for both intents.
 
 Produces:
   code/engine/trained_model/intent_classifier.joblib   (TfidfVectorizer + LR pipeline)
@@ -20,21 +18,18 @@ Usage:
 """
 
 import os
-import sys
-import json
 import logging
-import random
+import time
 from typing import List, Tuple
 
 import numpy as np
 import pandas as pd
 from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.linear_model import LogisticRegression, SGDClassifier
+from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import Pipeline
-from sklearn.model_selection import StratifiedKFold, cross_val_score
+from sklearn.model_selection import StratifiedKFold
 from sklearn.metrics import (
-    classification_report, confusion_matrix, accuracy_score,
-    precision_score, recall_score, f1_score
+    classification_report, confusion_matrix, accuracy_score, f1_score
 )
 import joblib
 
@@ -145,51 +140,39 @@ def load_labelled_examples(
     """
     Returns (texts, labels) where label 1 = DELETION, 0 = NOT_APPLICABLE.
     Sources:
-      1. deletion_requests.csv × output.csv (silver labels)
-      2. sample_deletion_requests.csv × sample_output.csv (gold labels)
-      3. Synthetic examples
+      1. sample_deletion_requests.csv × sample_output.csv (gold labels)
+      2. Synthetic examples
     """
     texts: List[str] = []
     labels: List[int] = []
 
-    # 1. Full dataset with output labels (silver)
-    dr_path = os.path.join(dataset_dir, "deletion_requests.csv")
-    out_path = os.path.join(ROOT, "output.csv")
-    if os.path.exists(dr_path) and os.path.exists(out_path):
-        dr = pd.read_csv(dr_path)
-        out = pd.read_csv(out_path)
-        merged = dr.merge(out[["case_id", "deletion_status"]], on="case_id")
-        for _, row in merged.iterrows():
-            txt = str(row.get("request_text", "")).strip()
-            status = str(row.get("deletion_status", "")).strip()
-            if not txt:
-                continue
-            label = 0 if status == "NOT_APPLICABLE" else 1
-            texts.append(txt)
-            labels.append(label)
-        logger.info("Loaded %d silver-labelled examples from deletion_requests.csv", len(texts))
-
-    # 2. Golden sample cases
+    # output.csv contains predictions, not labels; train only on labelled public examples.
     sr_path = os.path.join(dataset_dir, "sample_deletion_requests.csv")
     so_path = os.path.join(dataset_dir, "sample_output.csv")
-    if os.path.exists(sr_path) and os.path.exists(so_path):
-        sr = pd.read_csv(sr_path)
-        so = pd.read_csv(so_path)
-        merged_s = sr.merge(so[["case_id", "deletion_status"]], on="case_id")
-        for _, row in merged_s.iterrows():
-            txt = str(row.get("request_text", "")).strip()
-            status = str(row.get("deletion_status", "")).strip()
-            if not txt:
-                continue
-            label = 0 if status == "NOT_APPLICABLE" else 1
-            # Add gold examples twice for up-weighting
-            texts.append(txt)
-            labels.append(label)
-            texts.append(txt)
-            labels.append(label)
-        logger.info("Loaded %d golden examples (×2) from sample files", len(merged_s) * 2)
+    if not os.path.exists(sr_path) or not os.path.exists(so_path):
+        raise FileNotFoundError(
+            "Training requires sample_deletion_requests.csv and sample_output.csv "
+            f"under {dataset_dir}"
+        )
 
-    # 3. Synthetic examples
+    sr = pd.read_csv(sr_path)
+    so = pd.read_csv(so_path)
+    merged_s = sr.merge(so[["case_id", "deletion_status"]], on="case_id")
+    for _, row in merged_s.iterrows():
+        txt = str(row.get("request_text", "")).strip()
+        status = str(row.get("deletion_status", "")).strip()
+        if not txt:
+            continue
+        if status not in {"NOT_APPLICABLE", "COMPLETE", "INCOMPLETE"}:
+            raise ValueError(f"Unexpected deletion_status in sample output: {status!r}")
+        label = 0 if status == "NOT_APPLICABLE" else 1
+        texts.append(txt)
+        labels.append(label)
+    if not texts:
+        raise ValueError("No labelled training examples were loaded from the public samples")
+    logger.info("Loaded %d labelled examples from public sample files", len(merged_s))
+
+    # Synthetic examples
     for txt in _SYNTHETIC_NOT_APPLICABLE:
         texts.append(txt)
         labels.append(0)
@@ -227,7 +210,7 @@ def build_pipeline() -> Pipeline:
 
 # ── Training & evaluation ─────────────────────────────────────────────────────
 
-def train(dataset_dir: str = DATASET_DIR) -> None:
+def train(dataset_dir: str = DATASET_DIR) -> Pipeline:
     logger.info("=" * 60)
     logger.info("  Northstar Shop Intent Classifier Training")
     logger.info("=" * 60)
@@ -239,14 +222,36 @@ def train(dataset_dir: str = DATASET_DIR) -> None:
     logger.info("Total training examples: %d (label 0=%d, label 1=%d)",
                 len(y), (y == 0).sum(), (y == 1).sum())
 
-    # Cross-validation
+    # Cross-validation with visible per-fold progress.
     pipeline = build_pipeline()
     cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
-    cv_scores = cross_val_score(pipeline, X, y, cv=cv, scoring="f1_macro")
+    cv_scores = []
+    print("\n[1/3] Starting 5-fold cross-validation", flush=True)
+    cv_start = time.perf_counter()
+    for fold_no, (train_indices, validation_indices) in enumerate(cv.split(X, y), start=1):
+        fold_start = time.perf_counter()
+        print(f"  Fold {fold_no}/5: fitting...", flush=True)
+        fold_pipeline = build_pipeline()
+        fold_pipeline.fit(X[train_indices], y[train_indices])
+        validation_predictions = fold_pipeline.predict(X[validation_indices])
+        fold_score = f1_score(
+            y[validation_indices], validation_predictions, average="macro"
+        )
+        cv_scores.append(fold_score)
+        print(
+            f"  Fold {fold_no}/5: macro F1={fold_score:.4f} "
+            f"({time.perf_counter() - fold_start:.2f}s)",
+            flush=True,
+        )
+    cv_scores = np.asarray(cv_scores)
+    print(f"Cross-validation complete in {time.perf_counter() - cv_start:.2f}s", flush=True)
     logger.info("5-Fold CV F1 (macro): %.4f ± %.4f", cv_scores.mean(), cv_scores.std())
 
     # Full fit
+    print("\n[2/3] Fitting final model on all training examples...", flush=True)
+    fit_start = time.perf_counter()
     pipeline.fit(X, y)
+    print(f"Final model fit complete in {time.perf_counter() - fit_start:.2f}s", flush=True)
 
     # Training set metrics
     y_pred = pipeline.predict(X)
@@ -259,6 +264,7 @@ def train(dataset_dir: str = DATASET_DIR) -> None:
 
     # Save model
     model_path = os.path.join(MODEL_DIR, "intent_classifier.joblib")
+    print("\n[3/3] Saving trained model and evaluation report...", flush=True)
     joblib.dump(pipeline, model_path)
     logger.info("Model saved → %s", model_path)
 
@@ -321,4 +327,3 @@ def train(dataset_dir: str = DATASET_DIR) -> None:
 
 if __name__ == "__main__":
     train()
-

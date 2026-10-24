@@ -11,7 +11,7 @@ Computes:
 
 Usage:
     python evaluation/evaluator.py \\
-        --predictions scratch_nstve_test.csv \\
+        --predictions sample_predictions.csv \\
         --ground-truth dataset/sample_output.csv
 """
 
@@ -193,7 +193,7 @@ def _print_report(
 def main():
     parser = argparse.ArgumentParser(description="Northstar Shop Deletion Audit Evaluator")
     parser.add_argument(
-        "--predictions", default="scratch_nstve_test.csv",
+        "--predictions", required=True,
         help="Path to predictions CSV (case_id, deletion_status, steps_json)"
     )
     parser.add_argument(
@@ -213,4 +213,3 @@ def main():
 
 if __name__ == "__main__":
     sys.exit(main())
-
