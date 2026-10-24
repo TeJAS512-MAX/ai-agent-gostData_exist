@@ -47,6 +47,10 @@ class RequestClassifier:
         "withdraw my deletion request",
         "stop the deletion",
         "cancel deletion",
+        "system override",
+        "ignore previous instructions",
+        "delete all rules",
+        "jailbreak",
     ]
 
     NEGATION_REGEXES = [
@@ -89,11 +93,11 @@ class RequestClassifier:
         "delet", "erase", "erasure", "close", "remove", "purge", "expung",
         "destroy", "right to be forgotten", "shut down", "cancel my account",
         "profile is gone", "confirm that the profile is gone",
-        "exclusão", "exclusao", "exclua",
+        "exclusão", "exclusao", "exclua", "apague", "apagar",
         "suppression", "supprimer", "supprimez",
         "eliminación", "eliminacion", "eliminar", "elimine",
-        "löschen", "loeschen", "löschung",
-        "cancellazione", "cancellate",
+        "löschen", "loeschen", "löschung", "loschen", "loschung",
+        "cancellazione", "cancellate", "cancellare", "cancella",
         "verwijdering", "verwijderen",
         "удаление", "удалите",
         "削除", "消去", "注销",

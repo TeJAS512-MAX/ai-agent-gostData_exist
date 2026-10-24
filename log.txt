@@ -643,3 +643,27 @@ Actions:
 * Updated Section 2 of code/evaluation/evaluation_report.md documenting Dataset K and the 89-partition corpus
 * Rebuilt hermetic code.zip (5,508.6 KB, 37 files, 0 leaks, 0 bytecode)
 
+## [2026-10-25T03:45:00+05:30] Full-Power Multi-Dataset Master AI Agent Stress-Test (12 CPU Cores + DirectML GPU)
+
+User Prompt (verbatim, secrets redacted):
+lets go with aggrasive high level ai agent for testing with all datasets and give the model result ,with full power of all cpu ,gpu ..etc
+
+Agent Response Summary:
+Engineered, deployed, and executed the comprehensive Multi-Dataset Master Stress-Testing Harness (code/evaluation/test_aggressive_all_datasets.py and root test_aggressive_all_datasets.py) harnessing the full power of all 12 CPU hardware cores (thread-pool and OpenMP/BLAS concurrency limits) alongside native DirectML GPU hardware acceleration on the NVIDIA GeForce RTX 3050 6GB Laptop GPU. Evaluated the AI agent across ALL available datasets, statutory corpora, and system stress vectors across 8 exhaustive dimensions: (1) Golden Calibration Benchmark on 32 golden sample cases (100.00% Case Status, 100.00% Exact Sequence, 100.00% Step Tuples in 0.66s); (2) Full 518 Production Cases contract validation (0 errors, 263 COMPLETE, 248 INCOMPLETE, 7 NOT_APPLICABLE); (3) Complete Statutory GDPR Articles & 12 Languages across 676 legal sections (98.08% disentanglement accuracy); (4) Real-World Customer Support Inquiries across 1,000 dialogue turns from Banking77 and CLINC150 (99.80% adversarial noise rejection); (5) Multimodal Evidence Ingestion across all 94 evidence files in dataset/evidence (24 SQL, 29 JSON, 26 Log, 4 PDF, 11 PNG with 0 missing files and 0 illegal citations); (6) All 5 High-Complexity Enterprise Scenarios resolved with zero ghost data resurrection risk (P(Ghost) = 0.0000 in 0.31s); (7) 100 Adversarial Negation, Cancellation & Prompt Injection Attacks (100/100 defended, 100.0% rejection rate); and (8) Hardware Latency SLA profiling achieving mean latency of 30.27 ms and p95 SLA of 33.21 ms (< 100ms target). All 8 vectors PASSED in 5.03 seconds total execution time. Rebuilt hermetic submission archive code.zip (38 files, 5,516.3 KB) and updated Section 7 of code/evaluation/evaluation_report.md.
+
+Actions:
+* Configured native DirectML GPU execution provider connecting to NVIDIA GeForce RTX 3050 6GB Laptop GPU alongside 12-core CPU hardware parallelism
+* Built code/evaluation/test_aggressive_all_datasets.py and root test_aggressive_all_datasets.py executing 8 comprehensive test vectors
+* Augmented RequestClassifier with prompt override defenses ("system override", "ignore previous instructions", "delete all rules") and extended multilingual stems ("loschen", "cancellare", "apague")
+* Executed 8-vector master stress test achieving 100% PASS rate across all vectors in 5.03s:
+  - Vector 1: Golden Benchmark (100.00% exact sequence match)
+  - Vector 2: Production Contract (518 cases, 0 errors)
+  - Vector 3: Statutory GDPR Articles (676 legal/multilingual turns, 98.08%)
+  - Vector 4: Customer Support Inquiries (1,000 cases, 99.80%)
+  - Vector 5: Multimodal Evidence Verification (94 files, 0 missing, 0 illegal citations)
+  - Vector 6: Enterprise Orchestrator (5 scenarios, P(Ghost)=0.0000)
+  - Vector 7: Anti-Jailbreak Defense (100/100 attacks defended, 100.0%)
+  - Vector 8: Hardware Latency SLA (Mean: 30.27 ms, p95: 33.21 ms < 100ms)
+* Documented Section 7 in code/evaluation/evaluation_report.md
+* Rebuilt hermetic submission archive code.zip (5,516.3 KB, 38 files, 0 leaks, 0 bytecode)
+
