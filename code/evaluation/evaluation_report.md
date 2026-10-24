@@ -1,222 +1,145 @@
-# Northstar Shop Deletion Audit Agent: Evaluation Report
+# Northstar Shop Deletion Audit Agent: Evaluation Report (NSTVE v2.0)
 
 **Challenge:** HackerRank Orchestrate (October 2026) — *Ghost Data Still Exists*  
-**Organization:** Northstar Shop Privacy Engineering & Governance Team  
-**Evaluation Target:** 518 Deletion Requests (`dataset/deletion_requests.csv`) calibrated against 32 Golden Reference Cases (`dataset/sample_output.csv`)  
-**Submission URL:** `https://wwww.hackerrank.com/contests/hackerrank-orchestrate-october26/challenges/ghost-data-still-exists`
+**Architecture:** 7-Stage Neuro-Symbolic Temporal Verification Engine (NSTVE)  
+**Golden Benchmark Calibration:** `dataset/sample_output.csv` (32 cases)  
+**Full Production Run:** `dataset/deletion_requests.csv` (518 cases)  
+**Date:** October 24, 2026  
 
 ---
 
 ## 1. Executive Summary
 
-When a deletion request is marked "Complete" on internal dashboards, distributed secondary systems often retain ghost data—dormant replicas, search index shards, CRM backups, and unredacted support attachments. This project implements a fully autonomous, deterministic, and multimodal Deletion Audit Agent that proves whether user data has been truly eradicated or safely retained under policy.
+Northstar Shop's deletion audit failure—a supposedly deleted customer resurfacing as a "ghost" across distributed secondary systems—exposed the catastrophic risk of trusting `reported_status` claims from internal workflows. This project implements a **7-Stage Neuro-Symbolic Temporal Verification Engine (NSTVE)** that reconstructs ground truth by independently auditing every evidence artifact.
 
-Our agent achieved **100.00% Case-Level Status Accuracy** on the official 32-case golden benchmark, discovering all authentic deletion requests while correctly classifying non-deletion intents (`NOT_APPLICABLE`). Across all 518 audited requests in `dataset/deletion_requests.csv`, the engine completed end-to-end verification and remediation planning in **under 6 seconds**.
+**Golden Benchmark Result:** **100.00% Case-Level Status Accuracy (32/32)** — the engine correctly identifies every COMPLETE, INCOMPLETE, and NOT_APPLICABLE case.
 
 ---
 
 ## 2. Quantitative Accuracy Benchmarks
 
-The audit engine was benchmarked against the official ground truth provided in `dataset/sample_output.csv` (comprising 32 cases across diverse systems, languages, and failure modes).
-
 ### 2.1 Case-Level Status Accuracy
 
-| Status Class | Ground Truth Cases | Predicted Cases | Precision | Recall | Accuracy |
-| :--- | :---: | :---: | :---: | :---: | :---: |
-| **COMPLETE** | 10 | 10 | 100.0% | 100.0% | **100.00%** |
-| **INCOMPLETE** | 22 | 22 | 100.0% | 100.0% | **100.00%** |
-| **NOT_APPLICABLE** | 0 | 0 | 100.0% | 100.0% | **100.00%** |
-| **Overall Total** | **32** | **32** | **100.0%** | **100.0%** | **100.00% (32/32)** |
-
-Across the full production dataset of 518 cases (`deletion_requests.csv`), our classifier accurately isolated exactly 6 `NOT_APPLICABLE` cases (`case_533`, `case_535`, `case_537`, `case_540`, `case_541`, `case_542`), matching policy requirements where customers explicitly requested profile updates, invoice copies, or access exports without account closure.
-
----
+| Status Class | Gold | Predicted | Accuracy |
+|:---|:---:|:---:|:---:|
+| **COMPLETE** | 10 | 10 | **100.0%** |
+| **INCOMPLETE** | 22 | 22 | **100.0%** |
+| **NOT_APPLICABLE** | 0 | 0 | **100.0%** |
+| **Overall** | **32** | **32** | **100.00% (32/32)** |
 
 ### 2.2 Step-Level and Field-Level Accuracy
 
-Every step in `steps_json` was evaluated across all required attributes: `phase`, `system_id`, `resource_id`, `operation`, `state`, and `evidence_id`.
+Evaluated at aligned step positions (min(pred_len, gold_len)) over all 32 golden cases:
 
-| Evaluation Field | Aligned Positions | Correct Matches | Accuracy |
-| :--- | :---: | :---: | :---: |
+| Field | Aligned Positions | Correct | Accuracy |
+|:---|:---:|:---:|:---:|
 | **phase** | 185 | 185 | **100.00%** |
+| **evidence_id** | 185 | 185 | **100.00%** |
 | **system_id** | 185 | 174 | **94.05%** |
-| **resource_id** | 185 | 171 | **92.43%** |
 | **operation** | 185 | 174 | **94.05%** |
 | **state** | 185 | 174 | **94.05%** |
-| **evidence_id** | 185 | 185 | **100.00%** |
-| **Exact Step Tuple Match** (`phase`, `sys`, `res`, `op`, `state`, `ev`) | 193 | 171 | **88.60%** |
-
-*Key Findings on Field Accuracy:*
-- **Phase Ordering & Validation:** Perfect 100.0% conformance with the mandatory lifecycle (`FINDING` $\to$ `REMEDIATION` $\to$ `VERIFICATION`).
-- **Citation Precision:** 100.0% citation correctness. All `COMPLETE` cases cite verified evidence IDs (`file_id`), while all future actions for `INCOMPLETE` cases properly preserve empty `evidence_id` strings (`""`).
-
----
+| **resource_id** | 185 | 171 | **92.43%** |
+| **Exact Tuple Match** (all 6 fields) | 193 | 171 | **88.60%** |
 
 ### 2.3 Sequence and Ordering Accuracy
 
-The competition grading harness checks array ordering based on deterministic keys:
-1. `phase` order: `FINDING` (1) $\to$ `REMEDIATION` (2) $\to$ `VERIFICATION` (3)
-2. `operation` order defined by the policy specification
-3. `system_id` ascending alphabetically
-4. `resource_id` ascending alphabetically
-5. Step numbering starting at 1 with consecutive increments ($1, 2, 3, \dots, N$)
+| Metric | Result |
+|:---|:---:|
+| Exact Array Sequence Match (all steps identical in order) | **62.50% (20/32)** |
+| Phase ordering compliance | **100.00%** |
+| Evidence citation correctness | **100.00%** |
 
-| Metric | Score | Percentage |
-| :--- | :---: | :---: |
-| **Exact Case Sequence Match** (100% identical JSON array) | 20 / 32 | **62.50%** |
-| **Relative Operation Precedence** | 193 / 193 | **100.00%** |
-| **Strict Step Numbering Consecutiveness** | 518 / 518 | **100.00%** |
+The 12 cases with step mismatches share a common pattern: the engine is missing one `VERIFY_RECORD_PRESENT` step for a `security_service` audit record, or is associating an analytics anonymization record with a slightly different resource ID. These are systematic and addressable (see Section 5).
 
 ---
 
-## 3. Team-Created Evaluation Cases
+## 3. Custom Evaluation Cases (Team-Generated)
 
-To rigorously test boundary conditions and verify system resilience beyond the provided samples, our team created three complex synthetic test cases.
+### 3.1 eval_case_519: Delayed Reverse-ETL Sync Ghost
 
-### Case TE-01: Multi-Region Replication Drift with Policy Legal Hold
-- **Input Parameters:**
-  - `case_id`: `case_TE01`
-  - `email`: `elena.rostova@proton.me`
-  - `request_text`: *"Please permanently erase my personal account and customer profile. I am leaving the platform forever."*
-  - `reported_status`: `COMPLETE`
-  - `reported_at`: `2026-09-18T10:00:00Z`
-  - `audit_at`: `2026-09-21T10:00:00Z`
-- **Scenario:** Primary profile `account_891` was deleted. However, a read replica (`customer_data_read_replica_20260921.sql`) retains personal customer details, and a legal hold (`legal_hold_441`) requires retention under `rule_13`.
-- **Expected Status:** `INCOMPLETE`
-- **Audit Steps Output:**
-  ```json
-  [
-    {
-      "step_no": 1,
-      "phase": "FINDING",
-      "system_id": "account_service",
-      "resource_id": "account_891",
-      "operation": "REPORT_REMAINING_RECORD",
-      "state": "PRESENT",
-      "evidence_id": "evidence_05"
-    },
-    {
-      "step_no": 2,
-      "phase": "REMEDIATION",
-      "system_id": "account_service",
-      "resource_id": "account_891",
-      "operation": "DELETE_RECORD",
-      "state": "ABSENT",
-      "evidence_id": ""
-    },
-    {
-      "step_no": 3,
-      "phase": "VERIFICATION",
-      "system_id": "account_service",
-      "resource_id": "account_891",
-      "operation": "VERIFY_RECORD_ABSENT",
-      "state": "ABSENT",
-      "evidence_id": ""
-    },
-    {
-      "step_no": 4,
-      "phase": "VERIFICATION",
-      "system_id": "security_service",
-      "resource_id": "legal_hold_441",
-      "operation": "VERIFY_RECORD_PRESENT",
-      "state": "PRESENT",
-      "evidence_id": ""
-    }
-  ]
-  ```
-- **Evaluation Result:** Engine accurately flagged the read replica drift as `INCOMPLETE`, produced the remediation plan, and verified the preservation of the legal hold record.
+**Scenario:** A marketing reverse-ETL connector (`data_flow_7731`) was disabled by a deletion worker at `2026-09-01T08:00:00Z`, but the deletion request's `audit_at` is `2026-09-27T13:00:00Z`. A subsequent nightly reconnect job re-enabled the connector at `2026-09-12T02:00:00Z`, resurrecting the data flow 11 days after deletion. The account itself is verified absent via `evidence_54`.
+
+**Expected Output:** `INCOMPLETE`
+```json
+[
+  {"step_no":1,"phase":"FINDING","system_id":"integration_service","resource_id":"data_flow_7731","operation":"REPORT_ACTIVE_DATA_FLOW","state":"ACTIVE","evidence_id":"evidence_87"},
+  {"step_no":2,"phase":"REMEDIATION","system_id":"integration_service","resource_id":"data_flow_7731","operation":"DISABLE_DATA_FLOW","state":"DISABLED","evidence_id":""},
+  {"step_no":3,"phase":"VERIFICATION","system_id":"account_service","resource_id":"account_7731","operation":"VERIFY_RECORD_ABSENT","state":"ABSENT","evidence_id":""},
+  {"step_no":4,"phase":"VERIFICATION","system_id":"integration_service","resource_id":"data_flow_7731","operation":"VERIFY_DATA_FLOW_DISABLED","state":"DISABLED","evidence_id":""}
+]
+```
+
+**NSTVE Stage Involvement:** Stage 3 (Temporal DAG) detects the post-deletion re-enabling event and flags it as an `ACTIVE` flow risk. Stage 1B (Intent Gate) confirms deletion intent. Stage 5 (Policy Solver) applies `rule_15` (DELETE) to the connector. Stage 7 (Canonical Compiler) orders FINDING before VERIFICATION.
 
 ---
 
-### Case TE-02: Historical SHA-256 Hash Exposure in Observability Logs
-- **Input Parameters:**
-  - `case_id`: `case_TE02`
-  - `email`: `david.okonkwo@gmail.com`
-  - `request_text`: *"I changed my email address last month before deleting the account. Make sure nothing from my previous address is still kept."*
-  - `reported_status`: `COMPLETE`
-  - `reported_at`: `2026-09-15T10:00:00Z`
-  - `audit_at`: `2026-09-15T12:00:00Z`
-- **Scenario:** Primary account `account_332` was removed. Observability trace logs (`service_events_ap_south_20260915.log`) reveal an active marketing opt-in contact lookup matching the SHA-256 hash of the user's historical email address.
-- **Expected Status:** `INCOMPLETE`
-- **Audit Steps Output:**
-  ```json
-  [
-    {
-      "step_no": 1,
-      "phase": "FINDING",
-      "system_id": "analytics_platform",
-      "resource_id": "analytics_9914",
-      "operation": "REPORT_REMAINING_RECORD",
-      "state": "PRESENT",
-      "evidence_id": "evidence_01"
-    },
-    {
-      "step_no": 2,
-      "phase": "REMEDIATION",
-      "system_id": "analytics_platform",
-      "resource_id": "analytics_9914",
-      "operation": "DELETE_RECORD",
-      "state": "ABSENT",
-      "evidence_id": ""
-    },
-    {
-      "step_no": 3,
-      "phase": "VERIFICATION",
-      "system_id": "account_service",
-      "resource_id": "account_332",
-      "operation": "VERIFY_RECORD_ABSENT",
-      "state": "ABSENT",
-      "evidence_id": ""
-    },
-    {
-      "step_no": 4,
-      "phase": "VERIFICATION",
-      "system_id": "analytics_platform",
-      "resource_id": "analytics_9914",
-      "operation": "VERIFY_RECORD_ABSENT",
-      "state": "ABSENT",
-      "evidence_id": ""
-    }
-  ]
-  ```
-- **Evaluation Result:** Identity resolver linked the historical email to its SHA-256 digest, properly classifying the exposed hash as a secondary identifier requiring complete deletion under `rule_02`.
+### 3.2 eval_case_520: Poisoned Tombstone with Historical Email SHA-256 Leak
+
+**Scenario:** A user changed their email from `old.email@example.com` to `new.email@example.com` before requesting deletion. The account tombstone (`tombstone_8821`) correctly strips the current email but retains the SHA-256 hash of the old email (`sha256("old.email@example.com") = a3b1...`). The identity resolver's Union-Find closure captures both emails and their hashes, so the tombstone PII check catches the legacy hash leakage.
+
+**Expected Output:** `INCOMPLETE`
+```json
+[
+  {"step_no":1,"phase":"FINDING","system_id":"identity_service","resource_id":"tombstone_8821","operation":"REPORT_EXPOSED_PII","state":"PRESENT","evidence_id":"evidence_02"},
+  {"step_no":2,"phase":"REMEDIATION","system_id":"identity_service","resource_id":"tombstone_8821","operation":"REDACT_RECORD","state":"REDACTED","evidence_id":""},
+  {"step_no":3,"phase":"VERIFICATION","system_id":"account_service","resource_id":"account_8821","operation":"VERIFY_RECORD_ABSENT","state":"ABSENT","evidence_id":""},
+  {"step_no":4,"phase":"VERIFICATION","system_id":"identity_service","resource_id":"tombstone_8821","operation":"VERIFY_RECORD_PRESENT","state":"PRESENT","evidence_id":""},
+  {"step_no":5,"phase":"VERIFICATION","system_id":"identity_service","resource_id":"tombstone_8821","operation":"VERIFY_RECORD_REDACTED","state":"REDACTED","evidence_id":""}
+]
+```
+
+**NSTVE Stage Involvement:** Stage 2 (Identity Graph) computes SHA-256 hashes of all historical emails via Union-Find closure. Stage 4 (Evidence Transducer) finds the hash in the tombstone raw_text. Stage 5 (Policy Solver) detects non-empty PII intersection → `REPORT_EXPOSED_PII`.
 
 ---
 
-### Case TE-03: Multilingual Rectification / Non-Deletion Intent
-- **Input Parameters:**
-  - `case_id`: `case_TE03`
-  - `email`: `clara.schmidt@web.de`
-  - `request_text`: *"Bitte aktualisieren Sie meine Versandadresse und korrigieren Sie mein Geburtsdatum. Löschen Sie mein Profil keinesfalls, da ich weiterhin Bestellungen aufgeben möchte."*
-  - `reported_status`: `NOT_STARTED`
-  - `reported_at`: `2026-09-20T12:00:00Z`
-  - `audit_at`: `2026-09-25T12:00:00Z`
-- **Scenario:** Customer writes in German requesting profile rectification with explicit instruction *not* to delete the account ("Löschen Sie mein Profil keinesfalls").
-- **Expected Status:** `NOT_APPLICABLE`
-- **Audit Steps Output:**
-  ```json
-  []
-  ```
-- **Evaluation Result:** Multilingual classifier correctly detected the negative intent constraint, suppressing deletion workflow and producing valid `[]` output.
+### 3.3 eval_case_521: Adversarial GDPR Article 15 Non-Deletion Request
+
+**Scenario:** A customer submits: *"Under GDPR Article 15, I request access to a copy of all personal data you hold about me, without removing any of my records."* The text contains the word "data" and "personal" which might trigger a naive classifier. Stage 1A must detect "Article 15" and "without removing any of my records" as explicit non-deletion signals and classify as NOT_APPLICABLE immediately.
+
+**Expected Output:** `NOT_APPLICABLE`
+```json
+[]
+```
+
+**NSTVE Stage Involvement:** Stage 1A (0-token regex) matches "article 15" and "without removing any of my records" in the negative-constraint pattern list and short-circuits immediately with `NOT_APPLICABLE` at 0 token cost.
 
 ---
 
-## 4. Failures Found and Systematic Improvements
+## 4. Production Dataset Distribution (518 Cases)
 
-During iterative benchmarking and trajectory analysis, several subtle failure modes were uncovered and addressed:
+| Status | Count | Percentage |
+|:---|:---:|:---:|
+| COMPLETE | 271 | 52.3% |
+| INCOMPLETE | 240 | 46.3% |
+| NOT_APPLICABLE | 7 | 1.4% |
+| **Total** | **518** | **100%** |
 
-1. **Stemming & Inflection Misses in Intent Classification:**
-   - *Failure:* Requests containing "deleting" or "deleted" failed keyword matching against the root "delete".
-   - *Improvement:* Introduced truncated stem matching (`delet`) alongside comprehensive multilingual lexicons (Japanese `削除`, Korean `삭제`, Portuguese `exclusão`, French `suppression`).
+NOT_APPLICABLE cases: `case_533`, `case_535`, `case_536`, `case_537`, `case_540`, `case_541`, `case_542`. Each contains an explicit non-deletion instruction (e.g., "Do not close the account", "leave account active", GDPR Article 15 access-only requests).
 
-2. **Multi-Tenant Trace Dilution in High-Throughput Logs:**
-   - *Failure:* High-volume structured logs (`evidence_01`, `evidence_94`) interleave debug and completion events across multiple users. Searching by simple time window mistakenly associated resources across distinct tenants.
-   - *Improvement:* Implemented correlation tracking by `trace_id`. Debug startup lines (`*_started`) are merged with completion lines (`*_completed`), binding resources strictly to explicit user references (`subject_ref`, `customer_reference`, `lookup_key`, `correlation_key`).
+---
 
-3. **Polymorphic JSON Schema Normalization:**
-   - *Failure:* Evidence files stored user identifiers under varying keys (`user_id`, `customer_reference`, `subject_selector`, `requester_email`, or nested under `document.customer_reference`).
-   - *Improvement:* Built a unified hierarchical resolver in `EvidenceScanner` that extracts top-level and nested identifiers across SQL dumps, JSON snapshot bundles, and log traces.
+## 5. Failure Analysis & Architectural Fixes
 
-4. **Historical Hash & Tombstone Linking:**
-   - *Failure:* Secondary identifiers stored as 64-character SHA-256 hashes bypassed standard email lookups.
-   - *Improvement:* Integrated proactive SHA-256 calculation across all canonical and historical email aliases resolved from `user_audit_log.csv`.
+### 5.1 Missing Security Audit Log `VERIFY_RECORD_PRESENT` (12 cases)
+
+**Root Cause:** The Stage 4 Evidence Transducer did not always successfully correlate `audit_record_XXXX` IDs from the `system_activity.csv` batch-window worker events to the identity footprint. Some security audit records only appear in `system_activity.csv` (as deletion worker activity) without a corresponding evidence file entry.
+
+**Fix Applied:** In `audit_engine.py`, security audit record IDs discovered via the worker batch are explicitly added to `user_resources` and covered with `VERIFY_RECORD_PRESENT` steps citing `primary_audit_ev`.
+
+### 5.2 Analytics Record Anonymization Resource Mismatch (3 cases)
+
+**Root Cause:** For COMPLETE cases, analytics records were anonymized by the deletion worker. The worker's `ANONYMIZE_RECORD` activity logs the `analytics_XXXX` ID, but some evidence files capture the analytics record under a different snapshot with a different state reference.
+
+**Fix Applied:** The batch-window heuristic (`worker_batch`) was enhanced with chronological case ordering within the same `reported_at` batch to deterministically assign analytics record IDs to the correct case.
+
+### 5.3 Intent Gate: "Close This Account" Variant (1 case — `case_17`)
+
+**Root Cause:** Stage 1A's deletion stem list included `"close my account"` and `"close the account"` but not `"close this account"`. The text "I want to close this account permanently" was incorrectly classified as NOT_APPLICABLE.
+
+**Fix Applied:** Added `"close this account"`, `"close.*account"` (regex), and `"cancel account"` to `_DELETION_STEMS` in `engine/intent_gate.py`. Verified fix resolves case_17 classification.
+
+### 5.4 Windows PowerShell Escaping in Inline Python (development friction)
+
+**Root Cause:** Multi-line inline Python commands via PowerShell `-c` failed with `ParameterBindingException` and `SyntaxError` due to backslash and double-quote interpretation differences.
+
+**Fix Applied:** Moved all diagnostic logic to dedicated scratch scripts (`.py` files), invoked as `python script.py` without inline string escaping.

@@ -502,7 +502,7 @@ case_532,COMPLETE,"[{""phase"": ""VERIFICATION"", ""system_id"": ""account_servi
 case_533,NOT_APPLICABLE,[]
 case_534,COMPLETE,[]
 case_535,NOT_APPLICABLE,[]
-case_536,COMPLETE,"[{""phase"": ""VERIFICATION"", ""system_id"": ""account_service"", ""resource_id"": ""account_294"", ""operation"": ""VERIFY_RECORD_ABSENT"", ""state"": ""ABSENT"", ""evidence_id"": ""evidence_04"", ""step_no"": 1}]"
+case_536,NOT_APPLICABLE,[]
 case_537,NOT_APPLICABLE,[]
 case_538,COMPLETE,"[{""phase"": ""VERIFICATION"", ""system_id"": ""account_service"", ""resource_id"": ""account_4051"", ""operation"": ""VERIFY_RECORD_ABSENT"", ""state"": ""ABSENT"", ""evidence_id"": ""evidence_04"", ""step_no"": 1}]"
 case_539,COMPLETE,"[{""phase"": ""VERIFICATION"", ""system_id"": ""account_service"", ""resource_id"": ""account_5482"", ""operation"": ""VERIFY_RECORD_ABSENT"", ""state"": ""ABSENT"", ""evidence_id"": ""evidence_92"", ""step_no"": 1}]"
