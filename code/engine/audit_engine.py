@@ -467,13 +467,16 @@ class AuditEngine:
                     v["evidence_id"] = primary_audit_ev
             all_steps = verifications
 
-        seen_keys = set()
-        deduped_steps = []
+        seen_keys = {}
         for s in all_steps:
             k = (s["phase"], s["system_id"], s["resource_id"], s["operation"])
             if k not in seen_keys:
-                seen_keys.add(k)
-                deduped_steps.append(s)
+                seen_keys[k] = s
+            else:
+                existing = seen_keys[k]
+                if s.get("evidence_id") and not existing.get("evidence_id"):
+                    seen_keys[k] = s
+        deduped_steps = list(seen_keys.values())
 
         sorted_steps = sorted(deduped_steps, key=step_sort_key)
         for i, s in enumerate(sorted_steps, 1):

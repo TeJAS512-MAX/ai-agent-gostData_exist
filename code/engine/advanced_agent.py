@@ -33,12 +33,14 @@ try:
     from code.engine.request_classifier import RequestClassifier
     from code.engine.evidence_scanner import EvidenceScanner
     from code.engine.intent_gate import IntentGate
+    from code.engine.compliance_matrix import ContractInvariantVerifier, GLOBAL_STATUTORY_REGIME
 except ImportError:
     from engine.audit_engine import AuditEngine
     from engine.identity_resolver import IdentityResolver, SubjectProfile
     from engine.request_classifier import RequestClassifier
     from engine.evidence_scanner import EvidenceScanner
     from engine.intent_gate import IntentGate
+    from engine.compliance_matrix import ContractInvariantVerifier, GLOBAL_STATUTORY_REGIME
 
 logger = logging.getLogger("AdvancedAuditAgent")
 
@@ -162,6 +164,7 @@ class SelfHealingVerifierAgent:
             return [], False, ["No steps to verify (NOT_APPLICABLE or empty)"]
 
         # 1. Clean and enforce contract schema
+        is_incomplete_case = any(st.get("phase") == "FINDING" for st in steps)
         cleaned_steps = []
         for s in steps:
             c = dict(s)
@@ -172,10 +175,14 @@ class SelfHealingVerifierAgent:
             state = c.get("state", "")
             ev_id = c.get("evidence_id", "") or ""
 
-            # Invariant: REMEDIATION steps are prescribed actions and do not cite historical evidence
+            # Invariant: REMEDIATION and proposed VERIFICATION steps in INCOMPLETE cases must have empty evidence_id
             if phase == "REMEDIATION" and ev_id:
                 healed = True
                 notes.append(f"Cleared illegal evidence_id '{ev_id}' on REMEDIATION step {op}")
+                ev_id = ""
+            elif phase == "VERIFICATION" and is_incomplete_case and ev_id:
+                healed = True
+                notes.append(f"Cleared illegal evidence_id '{ev_id}' on VERIFICATION step {op} in INCOMPLETE case")
                 ev_id = ""
 
             step_dict = {

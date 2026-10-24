@@ -36,10 +36,19 @@ class UnionFind:
         if x not in self._parent:
             self._parent[x] = x
             self._rank[x] = 0
-        while self._parent[x] != x:
-            self._parent[x] = self._parent[self._parent[x]]  # path compression
-            x = self._parent[x]
-        return x
+            return x
+        # Cycle-proof path compression traversal (prevents infinite loops on cyclic data)
+        visited = set()
+        curr = x
+        while self._parent[curr] != curr:
+            if curr in visited:
+                # Self-healing: break cycle
+                self._parent[curr] = curr
+                break
+            visited.add(curr)
+            self._parent[curr] = self._parent[self._parent[curr]]
+            curr = self._parent[curr]
+        return curr
 
     def union(self, a: str, b: str) -> None:
         ra, rb = self.find(a), self.find(b)
@@ -190,10 +199,7 @@ class IdentityGraph:
             if nm and nm != "nan":
                 names.add(nm)
             eh = str(r.get("email_hash", "")).strip()
-            if eh and eh != "nan":
-                emails.add(eh) if len(eh) == 64 else None  # SHA-256 is 64 hex chars
-                # Store as hash token
-        # We'll add stored email_hash values to hashes set properly below
+            # Stored email_hash values are collected into hashes below, not emails
 
         # Historical mutations
         user_audits = self._audit_log[self._audit_log["user_id"] == uid]

@@ -213,10 +213,10 @@ class TemporalDAG:
     def _row_matches_identity(self, row: pd.Series, footprint) -> bool:
         for col in ("resource_id", "details"):
             val = str(row.get(col, ""))
-            if footprint.user_id in val:
+            if footprint.user_id and footprint.user_id in val:
                 return True
             for em in footprint.emails:
-                if em in val:
+                if em and em in val:
                     return True
         return False
 

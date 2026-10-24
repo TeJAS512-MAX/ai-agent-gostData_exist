@@ -155,8 +155,8 @@ class CanonicalCompiler:
                     assert ev, (
                         f"{case_id}: INCOMPLETE FINDING step missing evidence_id: {op} {s['resource_id']}"
                     )
-                elif phase in ("REMEDIATION",):
+                elif phase in ("REMEDIATION", "VERIFICATION"):
                     assert ev == "", (
-                        f"{case_id}: REMEDIATION step must have empty evidence_id: {op} {s['resource_id']}"
+                        f"{case_id}: {phase} step in INCOMPLETE case must have empty evidence_id: {op} {s['resource_id']}"
                     )
 
