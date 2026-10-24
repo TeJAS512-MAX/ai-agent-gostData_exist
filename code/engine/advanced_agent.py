@@ -43,6 +43,8 @@ try:
         MCTSRemediationScheduler,
         EpistemicState,
         CausalSimResult,
+        InvariantReflectionCritic,
+        ReflectionVerdict,
     )
 except ImportError:
     from engine.audit_engine import AuditEngine
@@ -58,6 +60,8 @@ except ImportError:
         MCTSRemediationScheduler,
         EpistemicState,
         CausalSimResult,
+        InvariantReflectionCritic,
+        ReflectionVerdict,
     )
 
 logger = logging.getLogger("AdvancedAuditAgent")
@@ -242,6 +246,7 @@ class AdvancedAuditAgent:
         self.governor = MetaCognitiveGovernor()
         self.simulator = CounterfactualCausalSimulator()
         self.scheduler = MCTSRemediationScheduler()
+        self.critic = InvariantReflectionCritic()
 
         # Deterministic audit engine (100% golden benchmark accuracy)
         self.engine = AuditEngine(dataset_dir=dataset_dir)
