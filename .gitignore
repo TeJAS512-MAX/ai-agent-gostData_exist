@@ -50,3 +50,8 @@ hackerrank_repo/
 external_datasets/
 
 downloaded_datasets/
+
+# Runtime databases & checkpoints
+*.db
+*.db-wal
+*.db-shm

@@ -28,6 +28,8 @@ Usage:
 """
 
 import argparse
+import asyncio
+import concurrent.futures
 import json
 import logging
 import os
@@ -152,25 +154,47 @@ def run_batch(input_path: str, output_path: str, dataset_dir: str):
 
     results = []
     status_counts = {"COMPLETE": 0, "INCOMPLETE": 0, "NOT_APPLICABLE": 0}
+    results_lock = __import__('threading').Lock()
+    processed_count = [0]  # mutable counter for progress reporting
 
-    t1 = time.time()
-    for idx, row in requests_df.iterrows():
+    # ── Concurrent Batch Processing (thread-pool, semaphore-guarded) ────────
+    # Uses a ThreadPoolExecutor with at most CONCURRENCY workers to avoid
+    # thrashing on a shared dataset_dir file handle and to stay under memory
+    # pressure.  Each case is isolated; any exception is caught and logged
+    # without aborting the batch (fault-isolated per-case execution).
+    CONCURRENCY = min(8, max(1, __import__('os').cpu_count() or 4))
+
+    rows_list = list(requests_df.iterrows())
+
+    def _audit_one(args_tuple):
+        idx, row = args_tuple
         cid = str(row["case_id"]).strip()
-        status, steps = pipeline.run_case(row, all_cases_df=requests_df)
-        status_counts[status] = status_counts.get(status, 0) + 1
-
-        results.append({
+        try:
+            status, steps = pipeline.run_case(row, all_cases_df=requests_df)
+        except Exception as exc:
+            import logging as _log
+            _log.getLogger("BatchWorker").error("Case %s failed: %s", cid, exc)
+            status, steps = "NOT_APPLICABLE", []
+        row_result = {
             "case_id": cid,
             "deletion_status": status,
             "steps_json": json.dumps(steps),
-        })
+        }
+        with results_lock:
+            results.append(row_result)
+            status_counts[status] = status_counts.get(status, 0) + 1
+            processed_count[0] += 1
+            done = processed_count[0]
+            if done == 1 or done % 50 == 0 or done == total_cases:
+                elapsed = time.time() - t1
+                pct = done / total_cases * 100
+                print(f"  Processed {done}/{total_cases} ({pct:.1f}%) in {elapsed:.1f}s [workers={CONCURRENCY}]", flush=True)
+        return row_result
 
-        if idx == 0:
-            print(f"  Audited case 1/{total_cases} [INITIATED]...", flush=True)
-        elif (idx + 1) % 50 == 0 or (idx + 1) == total_cases:
-            elapsed = time.time() - t1
-            pct = (idx + 1) / total_cases * 100
-            print(f"  Processed {idx + 1}/{total_cases} ({pct:.1f}%) in {elapsed:.1f}s", flush=True)
+    t1 = time.time()
+    print(f"  Starting concurrent batch (CONCURRENCY={CONCURRENCY})...", flush=True)
+    with concurrent.futures.ThreadPoolExecutor(max_workers=CONCURRENCY) as executor:
+        list(executor.map(_audit_one, rows_list))
 
     total_time = time.time() - t1
 

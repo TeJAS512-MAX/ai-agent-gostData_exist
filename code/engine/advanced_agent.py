@@ -30,6 +30,20 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 import pandas as pd
 
 try:
+    from code.engine.blackboard import (
+        CaseBlackboard,
+        CaseStatus,
+        AgentStage,
+        UserIdentity,
+        RecordEvent,
+        RecordState,
+        Discrepancy,
+        StepObject,
+        AgentCallRecord,
+        AgentError,
+        SupervisorMixin,
+        CheckpointStore,
+    )
     from code.engine.audit_engine import AuditEngine
     from code.engine.identity_resolver import IdentityResolver, SubjectProfile
     from code.engine.request_classifier import RequestClassifier
@@ -47,6 +61,20 @@ try:
         ReflectionVerdict,
     )
 except ImportError:
+    from engine.blackboard import (
+        CaseBlackboard,
+        CaseStatus,
+        AgentStage,
+        UserIdentity,
+        RecordEvent,
+        RecordState,
+        Discrepancy,
+        StepObject,
+        AgentCallRecord,
+        AgentError,
+        SupervisorMixin,
+        CheckpointStore,
+    )
     from engine.audit_engine import AuditEngine
     from engine.identity_resolver import IdentityResolver, SubjectProfile
     from engine.request_classifier import RequestClassifier
@@ -226,7 +254,7 @@ class SelfHealingVerifierAgent:
 # MASTER AUTONOMOUS AUDIT AGENT
 # ==============================================================================
 
-class AdvancedAuditAgent:
+class AdvancedAuditAgent(SupervisorMixin):
     """
     High-level Autonomous Deletion Audit Agent (NSTVE v4.0 Ultra).
     Coordinates specialized sub-agents with zero-token symbolic reasoning,
@@ -253,7 +281,8 @@ class AdvancedAuditAgent:
         self.scanner = self.engine.scanner
         self.resolver = self.engine.resolver
 
-        logger.info("AdvancedAuditAgent initialization complete.")
+        self._init_supervisor(checkpoint_db=".blackboard_checkpoint.db")
+        logger.info("AdvancedAuditAgent initialization complete (Supervisor + Blackboard ready).")
 
     def audit_case(
         self,
@@ -271,6 +300,14 @@ class AdvancedAuditAgent:
         request_text = str(case_row.get("request_text", "")).strip()
         reported_status = str(case_row.get("reported_status", "")).strip()
         audit_at = str(case_row.get("audit_at", "")).strip()
+
+        # ── BLACKBOARD: initialise validated shared state ─────────────────
+        # Resume from crash checkpoint if available, else start fresh
+        bb: CaseBlackboard = (
+            (self._checkpoint_store.load_latest(case_id) or CaseBlackboard(case_id=case_id))
+            if self._checkpoint_store else CaseBlackboard(case_id=case_id)
+        )
+        bb.status = CaseStatus.IN_PROGRESS
 
         reasoning: List[AgentThought] = []
         step_idx = 1
@@ -296,6 +333,8 @@ class AdvancedAuditAgent:
 
         # ── SUB-AGENT 1: Intent Analysis ─────────────────────────────────────
         intent_info = self.intent_agent.analyze(request_text)
+        bb.intent = "DELETION_REQUEST" if intent_info["is_applicable"] else "NOT_APPLICABLE"
+        bb.regulatory_framework = intent_info["framework"]
         reasoning.append(AgentThought(
             step_no=step_idx,
             agent_name="IntentAnalystAgent",
@@ -308,6 +347,9 @@ class AdvancedAuditAgent:
         step_idx += 1
 
         if not intent_info["is_applicable"]:
+            bb.intent = "NOT_APPLICABLE"
+            bb.verdict = "NOT_APPLICABLE"
+            bb.status = CaseStatus.DONE
             cert = self._create_certificate(
                 case_id=case_id,
                 email=email,
@@ -334,6 +376,9 @@ class AdvancedAuditAgent:
                 action="HALT_NOT_APPLICABLE",
                 confidence=0.99,
             ))
+            bb.intent = "NOT_APPLICABLE"
+            bb.verdict = "NOT_APPLICABLE"
+            bb.status = CaseStatus.DONE
             cert = self._create_certificate(
                 case_id=case_id,
                 email=email,
@@ -348,6 +393,12 @@ class AdvancedAuditAgent:
             )
             return "NOT_APPLICABLE", [], cert
 
+        bb.identity = UserIdentity(
+            user_id=profile.user_id,
+            emails=list(getattr(profile, "emails", [])),
+            hashes=list(getattr(profile, "hashes", [])),
+            aliases=list(getattr(profile, "aliases", [])),
+        )
         reasoning.append(AgentThought(
             step_no=step_idx,
             agent_name="IdentityForensicsAgent",
@@ -431,6 +482,19 @@ class AdvancedAuditAgent:
             ))
             step_idx += 1
 
+        # ── SUB-AGENT 7: Axiomatic Invariant Reflection Critic ────────────────
+        final_steps, critic_verdict = self.critic.audit_and_heal(final_steps, raw_status)
+        reasoning.append(AgentThought(
+            step_no=step_idx,
+            agent_name="InvariantReflectionCritic",
+            phase="REFLECTION",
+            thought="Execute formal post-condition verification against 5 axiomatic deletion invariants.",
+            observation=f"Axiomatic compliance: {critic_verdict.is_compliant}, Violations: {len(critic_verdict.violations_detected)}, Seal: {critic_verdict.invariant_seal_hash[:8]}.",
+            action="SEAL_INVARIANT" if critic_verdict.is_compliant else "REVISE_INVARIANT",
+            confidence=1.0,
+        ))
+        step_idx += 1
+
         # Determine risk level based on audit findings
         if raw_status == "COMPLETE":
             risk_level = "RESOLVED"
@@ -456,6 +520,27 @@ class AdvancedAuditAgent:
             self_healed=self_healed,
             elapsed_ms=elapsed_ms,
         )
+
+        # ── BLACKBOARD: commit final verdict and compiled steps ──────────
+        bb.verdict = raw_status
+        bb.final_steps = [
+            StepObject(
+                phase=s.get("phase", "FINDING"),
+                system_id=s.get("system_id", ""),
+                resource_id=s.get("resource_id", ""),
+                operation=s.get("operation", ""),
+                state=s.get("state", ""),
+                evidence_id=s.get("evidence_id", ""),
+                step_no=s.get("step_no"),
+            )
+            for s in final_steps
+        ]
+        bb.status = CaseStatus.DONE
+        if self._checkpoint_store:
+            try:
+                self._checkpoint_store.save(bb, AgentStage.COMPLETE.value)
+            except Exception:
+                pass
 
         return raw_status, final_steps, cert
 
