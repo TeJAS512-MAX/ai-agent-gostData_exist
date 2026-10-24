@@ -90,6 +90,9 @@ def reasoning_node(state: AgentState) -> dict:
         extra_kwargs["api_base"] = Config.OLLAMA_API_BASE
         if Config.OLLAMA_API_KEY:
             extra_kwargs["api_key"] = Config.OLLAMA_API_KEY
+    elif model_name.startswith("openrouter/"):
+        if Config.OPENROUTER_API_KEY:
+            extra_kwargs["api_key"] = Config.OPENROUTER_API_KEY
 
     try:
         response = litellm.completion(

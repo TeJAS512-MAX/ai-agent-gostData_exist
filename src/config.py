@@ -21,10 +21,14 @@ class Config:
 
     # API Keys & Endpoints
     GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
+    OPENROUTER_API_KEY: str = os.getenv("OPENROUTER_API_KEY", "")
     OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
     GROQ_API_KEY: str = os.getenv("GROQ_API_KEY", "")
     ANTHROPIC_API_KEY: str = os.getenv("ANTHROPIC_API_KEY", "")
     
+    # OpenRouter Model Preference
+    OPENROUTER_MODEL: str = os.getenv("OPENROUTER_MODEL", "meta-llama/llama-3.3-70b-instruct")
+
     # Ollama (Local or Cloud/Remote)
     OLLAMA_API_BASE: str = os.getenv("OLLAMA_API_BASE", "http://localhost:11434")
     OLLAMA_API_KEY: str = os.getenv("OLLAMA_API_KEY", "")
@@ -33,13 +37,19 @@ class Config:
     @classmethod
     def get_active_model(cls) -> str:
         """Determines best active model based on provider preference and available credentials."""
-        # 1. Explicit Ollama Provider
+        # 1. Explicit OpenRouter
+        if cls.DEFAULT_LLM_PROVIDER == "openrouter":
+            return f"openrouter/{cls.OPENROUTER_MODEL}"
+
+        # 2. Explicit Ollama Provider
         if cls.DEFAULT_LLM_PROVIDER == "ollama":
             return f"ollama/{cls.OLLAMA_MODEL}"
         
-        # 2. Cloud Providers
+        # 3. Direct Cloud Providers
         if cls.GEMINI_API_KEY and not cls.GEMINI_API_KEY.startswith("your_"):
             return "gemini/gemini-3.8-flash"
+        if cls.OPENROUTER_API_KEY and not cls.OPENROUTER_API_KEY.startswith("your_"):
+            return f"openrouter/{cls.OPENROUTER_MODEL}"
         if cls.GROQ_API_KEY and not cls.GROQ_API_KEY.startswith("your_"):
             return "groq/llama-3.3-70b-versatile"
         if cls.OPENAI_API_KEY and not cls.OPENAI_API_KEY.startswith("your_"):
@@ -47,7 +57,7 @@ class Config:
         if cls.ANTHROPIC_API_KEY and not cls.ANTHROPIC_API_KEY.startswith("your_"):
             return "anthropic/claude-3-5-sonnet-20241022"
         
-        # 3. Fallback to local Ollama if configured
+        # 4. Fallback to local Ollama if configured
         if cls.OLLAMA_MODEL and cls.DEFAULT_LLM_PROVIDER != "mock":
             return f"ollama/{cls.OLLAMA_MODEL}"
 
