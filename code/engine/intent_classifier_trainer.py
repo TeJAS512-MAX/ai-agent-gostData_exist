@@ -27,7 +27,7 @@ import os
 import json
 import logging
 import time
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Optional
 
 import numpy as np
 import pandas as pd
@@ -39,6 +39,7 @@ from sklearn.metrics import (
     classification_report, confusion_matrix, accuracy_score, f1_score
 )
 import joblib
+import argparse
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("MultiDatasetTrainer")
@@ -203,70 +204,139 @@ DATASET_MULTI_DOMAIN = [
 # DATA LOADER & CORPUS BUILDER
 # ==============================================================================
 
-def build_multi_dataset_corpus(dataset_dir: str = DATASET_DIR) -> Tuple[List[Dict], np.ndarray, np.ndarray]:
+def load_custom_dataset(filepath: str) -> List[Dict]:
+    """
+    Ingests an external custom dataset from CSV, JSON, or JSONL format.
+    Accepts:
+      - CSV with ('text', 'label') or ('request_text', 'deletion_status')
+      - JSON list of objects with ('text', 'label') or ('request_text', 'deletion_status')
+      - JSONL newline-delimited JSON objects
+    """
+    items = []
+    if not os.path.exists(filepath):
+        logger.warning("Custom dataset file not found: %s", filepath)
+        return items
+    src_name = os.path.splitext(os.path.basename(filepath))[0]
+    if filepath.endswith(".csv"):
+        df = pd.read_csv(filepath)
+        text_col = "text" if "text" in df.columns else "request_text"
+        label_col = "label" if "label" in df.columns else "deletion_status"
+        if text_col in df.columns and label_col in df.columns:
+            for _, row in df.iterrows():
+                txt = str(row[text_col]).strip()
+                val = row[label_col]
+                if isinstance(val, (int, float, bool)):
+                    lbl = int(val)
+                else:
+                    st = str(val).strip().upper()
+                    lbl = 0 if st in ["0", "NOT_APPLICABLE", "NON_DELETION", "FALSE"] else 1
+                if txt:
+                    items.append({
+                        "text": txt,
+                        "label": lbl,
+                        "dataset_source": f"Custom_{src_name}",
+                    })
+    elif filepath.endswith((".json", ".jsonl")):
+        with open(filepath, "r", encoding="utf-8") as f:
+            try:
+                data = json.load(f)
+            except Exception:
+                f.seek(0)
+                data = [json.loads(line) for line in f if line.strip()]
+        if isinstance(data, list):
+            for entry in data:
+                txt = entry.get("text") or entry.get("request_text") or ""
+                val = entry.get("label") if "label" in entry else entry.get("deletion_status")
+                if isinstance(val, (int, float, bool)):
+                    lbl = int(val)
+                else:
+                    st = str(val).strip().upper()
+                    lbl = 0 if st in ["0", "NOT_APPLICABLE", "NON_DELETION", "FALSE"] else 1
+                if txt:
+                    items.append({
+                        "text": str(txt).strip(),
+                        "label": lbl,
+                        "dataset_source": f"Custom_{src_name}",
+                    })
+    logger.info("Loaded %d examples from custom dataset: %s", len(items), filepath)
+    return items
+
+
+def build_multi_dataset_corpus(
+    dataset_dir: str = DATASET_DIR,
+    custom_data_paths: Optional[List[str]] = None,
+    skip_built_in: bool = False
+) -> Tuple[List[Dict], np.ndarray, np.ndarray]:
     """
     Compiles all datasets into a unified corpus with domain metadata.
+    Supports built-in partitions plus optional external custom datasets.
     """
     corpus: List[Dict] = []
 
-    # 1. Official Ground-Truth Samples (Dataset A)
-    sr_path = os.path.join(dataset_dir, "sample_deletion_requests.csv")
-    so_path = os.path.join(dataset_dir, "sample_output.csv")
-    if os.path.exists(sr_path) and os.path.exists(so_path):
-        sr = pd.read_csv(sr_path)
-        so = pd.read_csv(so_path)
-        merged = sr.merge(so[["case_id", "deletion_status"]], on="case_id")
-        for _, row in merged.iterrows():
-            txt = str(row.get("request_text", "")).strip()
-            st = str(row.get("deletion_status", "")).strip()
-            lbl = 0 if st == "NOT_APPLICABLE" else 1
+    # Ingest external custom datasets if provided
+    if custom_data_paths:
+        for p in custom_data_paths:
+            corpus.extend(load_custom_dataset(p))
+
+    if not skip_built_in:
+        # 1. Official Ground-Truth Samples (Dataset A)
+        sr_path = os.path.join(dataset_dir, "sample_deletion_requests.csv")
+        so_path = os.path.join(dataset_dir, "sample_output.csv")
+        if os.path.exists(sr_path) and os.path.exists(so_path):
+            sr = pd.read_csv(sr_path)
+            so = pd.read_csv(so_path)
+            merged = sr.merge(so[["case_id", "deletion_status"]], on="case_id")
+            for _, row in merged.iterrows():
+                txt = str(row.get("request_text", "")).strip()
+                st = str(row.get("deletion_status", "")).strip()
+                lbl = 0 if st == "NOT_APPLICABLE" else 1
+                corpus.append({
+                    "text": txt,
+                    "label": lbl,
+                    "dataset_source": "Dataset_A_Official_Samples",
+                    "case_id": row["case_id"]
+                })
+            logger.info("Loaded %d gold samples from Dataset A", len(merged))
+
+        # 2. Multilingual Deletions (Dataset B)
+        for item in DATASET_MULTILINGUAL_DELETION:
             corpus.append({
-                "text": txt,
-                "label": lbl,
-                "dataset_source": "Dataset_A_Official_Samples",
-                "case_id": row["case_id"]
+                "text": item["text"],
+                "label": item["label"],
+                "dataset_source": f"Dataset_B_Multilingual_{item.get('lang', 'en')}",
             })
-        logger.info("Loaded %d gold samples from Dataset A", len(merged))
 
-    # 2. Multilingual Deletions (Dataset B)
-    for item in DATASET_MULTILINGUAL_DELETION:
-        corpus.append({
-            "text": item["text"],
-            "label": item["label"],
-            "dataset_source": f"Dataset_B_Multilingual_{item.get('lang', 'en')}",
-        })
+        # 3. DSAR & Non-Deletion Requests (Dataset C)
+        for item in DATASET_DSAR_NON_DELETION:
+            corpus.append({
+                "text": item["text"],
+                "label": item["label"],
+                "dataset_source": "Dataset_C_DSAR_NonDeletion",
+            })
 
-    # 3. DSAR & Non-Deletion Requests (Dataset C)
-    for item in DATASET_DSAR_NON_DELETION:
-        corpus.append({
-            "text": item["text"],
-            "label": item["label"],
-            "dataset_source": "Dataset_C_DSAR_NonDeletion",
-        })
+        # 4. Adversarial Negations (Dataset D)
+        for item in DATASET_ADVERSARIAL_NEGATIONS:
+            corpus.append({
+                "text": item["text"],
+                "label": item["label"],
+                "dataset_source": "Dataset_D_Adversarial_Negations",
+            })
 
-    # 4. Adversarial Negations (Dataset D)
-    for item in DATASET_ADVERSARIAL_NEGATIONS:
-        corpus.append({
-            "text": item["text"],
-            "label": item["label"],
-            "dataset_source": "Dataset_D_Adversarial_Negations",
-        })
+        # 5. Account Maintenance Inquiries (Dataset E)
+        for item in DATASET_ACCOUNT_MAINTENANCE:
+            corpus.append({
+                "text": item["text"],
+                "label": item["label"],
+                "dataset_source": "Dataset_E_Account_Maintenance",
+            })
 
-    # 5. Account Maintenance Inquiries (Dataset E)
-    for item in DATASET_ACCOUNT_MAINTENANCE:
-        corpus.append({
-            "text": item["text"],
-            "label": item["label"],
-            "dataset_source": "Dataset_E_Account_Maintenance",
-        })
-
-    # 6. Multi-Domain Privacy Corpora (Dataset F)
-    for item in DATASET_MULTI_DOMAIN:
-        corpus.append({
-            "text": item["text"],
-            "label": item["label"],
-            "dataset_source": "Dataset_F_Multi_Domain",
-        })
+        # 6. Multi-Domain Privacy Corpora (Dataset F)
+        for item in DATASET_MULTI_DOMAIN:
+            corpus.append({
+                "text": item["text"],
+                "label": item["label"],
+                "dataset_source": "Dataset_F_Multi_Domain",
+            })
 
     # Save complete corpus to disk for inspection and auditability
     corpus_path = os.path.join(MODEL_DIR, "multi_dataset_corpus.json")
@@ -325,13 +395,19 @@ def build_dual_path_pipeline() -> Pipeline:
 # TRAINING & BENCHMARKING HARNESS
 # ==============================================================================
 
-def train_and_benchmark(dataset_dir: str = DATASET_DIR) -> Pipeline:
+def train_and_benchmark(
+    dataset_dir: str = DATASET_DIR,
+    custom_data_paths: Optional[List[str]] = None,
+    skip_built_in: bool = False,
+    output_model_path: Optional[str] = None,
+    output_report_path: Optional[str] = None
+) -> Pipeline:
     print("=" * 70)
     print("  NORTHSTAR SHOP: MULTI-DATASET INTENT CLASSIFIER TRAINING")
     print("=" * 70)
 
     t0 = time.time()
-    corpus, X, y = build_multi_dataset_corpus(dataset_dir)
+    corpus, X, y = build_multi_dataset_corpus(dataset_dir, custom_data_paths=custom_data_paths, skip_built_in=skip_built_in)
 
     n_del = int((y == 1).sum())
     n_non = int((y == 0).sum())
@@ -368,7 +444,7 @@ def train_and_benchmark(dataset_dir: str = DATASET_DIR) -> Pipeline:
     report = classification_report(y, y_pred, target_names=["NOT_APPLICABLE", "DELETION"])
 
     # Model persistence
-    model_path = os.path.join(MODEL_DIR, "intent_classifier.joblib")
+    model_path = output_model_path or os.path.join(MODEL_DIR, "intent_classifier.joblib")
     joblib.dump(pipeline, model_path)
     print(f"Model Artifact Saved -> {model_path} ({os.path.getsize(model_path)/1024:.1f} KB)")
 
@@ -402,7 +478,7 @@ def train_and_benchmark(dataset_dir: str = DATASET_DIR) -> Pipeline:
         stress_results.append((is_ok, label_str, prob[1], txt))
 
     # Detailed report persistence
-    report_path = os.path.join(MODEL_DIR, "training_report.txt")
+    report_path = output_report_path or os.path.join(MODEL_DIR, "training_report.txt")
     with open(report_path, "w", encoding="utf-8") as f:
         f.write("Northstar Shop — Multi-Dataset Intent Classifier Training Report\n")
         f.write("=" * 70 + "\n\n")
@@ -433,4 +509,31 @@ def train_and_benchmark(dataset_dir: str = DATASET_DIR) -> Pipeline:
 
 
 if __name__ == "__main__":
-    train_and_benchmark()
+    parser = argparse.ArgumentParser(
+        description="Northstar Shop: Multi-Dataset Intent Classifier Trainer"
+    )
+    parser.add_argument(
+        "--custom-data", "-c", nargs="*", default=None,
+        help="One or more file paths to custom training datasets (.csv, .json, .jsonl)"
+    )
+    parser.add_argument(
+        "--skip-built-in", action="store_true",
+        help="Train exclusively on custom datasets without built-in partitions"
+    )
+    parser.add_argument(
+        "--output-model", "-o", default=None,
+        help="Custom path to save the serialized .joblib model artifact"
+    )
+    parser.add_argument(
+        "--output-report", "-r", default=None,
+        help="Custom path to save the generated training report"
+    )
+    args = parser.parse_args()
+
+    train_and_benchmark(
+        dataset_dir=DATASET_DIR,
+        custom_data_paths=args.custom_data,
+        skip_built_in=args.skip_built_in,
+        output_model_path=args.output_model,
+        output_report_path=args.output_report
+    )
