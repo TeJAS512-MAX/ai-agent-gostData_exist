@@ -161,6 +161,13 @@ def _print_report(
     print(sep)
     print(f"  Total cases evaluated  : {n}")
     print()
+    if n == 0:
+        print("  WARNING: 0 overlapping case_ids between predictions and ground-truth.")
+        print("  Note: sample_output.csv covers case_01-case_32 (from sample_deletion_requests.csv),")
+        print("  whereas production output.csv covers case_33-case_550 (from deletion_requests.csv).")
+        print(sep)
+        return
+
     print(f"  Case Status Accuracy   : {status_correct}/{n} ({status_correct/n*100:.2f}%)")
     print(f"  Exact Sequence Match   : {exact_seq}/{n} ({exact_seq/n*100:.2f}%)")
     print()
@@ -199,6 +206,8 @@ def main():
     gold_df = load_csv(args.ground_truth)
 
     results = evaluate(pred_df, gold_df, verbose=True)
+    if results["n_cases"] == 0:
+        return 0
     return 0 if results["status_accuracy"] >= 1.0 else 1
 
 

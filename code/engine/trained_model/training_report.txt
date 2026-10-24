@@ -1,0 +1,37 @@
+Northstar Shop — Intent Classifier Training Report
+============================================================
+
+Total examples     : 662
+  NOT_APPLICABLE   : 47
+  DELETION         : 615
+
+5-Fold CV F1       : 0.9292 ± 0.0205
+Train Accuracy     : 0.9924
+Train Macro F1     : 0.9727
+
+Confusion Matrix (rows=actual, cols=pred):
+  Labels: NOT_APPLICABLE=0, DELETION=1
+[[ 47   0]
+ [  5 610]]
+
+Classification Report:
+                precision    recall  f1-score   support
+
+NOT_APPLICABLE       0.90      1.00      0.95        47
+      DELETION       1.00      0.99      1.00       615
+
+      accuracy                           0.99       662
+     macro avg       0.95      1.00      0.97       662
+  weighted avg       0.99      0.99      0.99       662
+
+Sample Predictions:
+  ✗ [NOT_APPLICABLE] p=0.351 | Please delete my account.
+  ✓ [      DELETION] p=0.602 | I want to erase all my data.
+  ✓ [NOT_APPLICABLE] p=0.017 | Please keep my account active. Update my address.
+  ✓ [NOT_APPLICABLE] p=0.115 | Under GDPR Article 15 I request my data copy.
+  ✓ [      DELETION] p=0.783 | Close this account permanently.
+  ✓ [      DELETION] p=0.692 | I want to close this account permanently.
+  ✗ [NOT_APPLICABLE] p=0.478 | Ich möchte mein Konto löschen.
+  ✓ [NOT_APPLICABLE] p=0.110 | Please update my billing details only.
+  ✓ [      DELETION] p=0.607 | Erase my profile from all your systems.
+  ✓ [NOT_APPLICABLE] p=0.052 | Can I unsubscribe from marketing only? Keep account.

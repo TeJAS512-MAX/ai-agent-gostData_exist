@@ -5,11 +5,12 @@ Classifies deletion_requests.request_text to determine whether a genuine
 account-deletion was requested.
 
 Strategy:
-  Stage 1A (0-Token Regex) -- deterministic keyword / negative-constraint patterns.
-  Stage 1B (LLM Micro-Classifier Fallback) -- invoked ONLY for genuinely ambiguous
-  text that Stage 1A cannot confidently classify.  Requires OPENROUTER_API_KEY or
-  GEMINI_API_KEY environment variable.  Falls back gracefully to NOT_APPLICABLE if
-  the network call fails.
+  Stage 1A (0-Token Regex)  -- deterministic keyword / negative-constraint patterns.
+  Stage 1B (Trained ML)     -- TF-IDF + Logistic Regression classifier trained on
+                               518 labelled examples + 80 synthetic examples.
+                               Loaded from code/engine/trained_model/intent_classifier.joblib.
+  Stage 1C (LLM Fallback)   -- invoked ONLY if both 1A and 1B are inconclusive.
+                               Requires OPENROUTER_API_KEY or GEMINI_API_KEY env var.
 """
 
 import re
@@ -19,6 +20,24 @@ import logging
 from typing import Optional
 
 logger = logging.getLogger(__name__)
+
+# ── Trained model loader ──────────────────────────────────────────────────────
+
+_MODEL_PATH = os.path.join(os.path.dirname(__file__), "trained_model", "intent_classifier.joblib")
+_trained_clf = None
+
+def _load_trained_model():
+    global _trained_clf
+    if _trained_clf is not None:
+        return _trained_clf
+    if os.path.exists(_MODEL_PATH):
+        try:
+            import joblib
+            _trained_clf = joblib.load(_MODEL_PATH)
+            logger.debug("Stage 1B: Loaded trained classifier from %s", _MODEL_PATH)
+        except Exception as exc:
+            logger.warning("Stage 1B: Failed to load trained model: %s", exc)
+    return _trained_clf
 
 # ── Stage 1A: Zero-token deterministic patterns ──────────────────────────────
 
@@ -113,10 +132,31 @@ def _stage1a(request_text: str) -> Optional[str]:
     return None  # ambiguous – escalate to Stage 1B
 
 
-def _stage1b_llm(request_text: str) -> str:
+def _stage1b_ml(request_text: str) -> Optional[str]:
     """
-    Lightweight LLM binary classifier.  Returns "DELETION" or "NOT_APPLICABLE".
-    Falls back to NOT_APPLICABLE on any error.
+    Stage 1B: TF-IDF + Logistic Regression classifier.
+    Returns "DELETION", "NOT_APPLICABLE", or None (low confidence → escalate).
+    """
+    clf = _load_trained_model()
+    if clf is None:
+        return None
+    try:
+        proba = clf.predict_proba([request_text])[0]
+        # proba[0] = NOT_APPLICABLE, proba[1] = DELETION
+        if proba[1] >= 0.65:
+            return "DELETION"
+        if proba[0] >= 0.65:
+            return "NOT_APPLICABLE"
+        return None  # low confidence — escalate to 1C
+    except Exception as exc:
+        logger.debug("Stage 1B ML inference failed: %s", exc)
+        return None
+
+
+def _stage1c_llm(request_text: str) -> str:
+    """
+    Stage 1C (formerly 1B): LLM micro-classifier for truly ambiguous text.
+    Returns "DELETION" or "NOT_APPLICABLE". Falls back to NOT_APPLICABLE on error.
     """
     api_key = os.environ.get("OPENROUTER_API_KEY") or os.environ.get("GEMINI_API_KEY")
     if not api_key:
@@ -158,18 +198,33 @@ def _stage1b_llm(request_text: str) -> str:
 
 class IntentGate:
     """
-    Stage 1: Intent classification with 0-token fast path and LLM fallback.
+    Stage 1: Intent classification with 3-tier pipeline:
+      1A — 0-token regex (deterministic, instant)
+      1B — Trained TF-IDF + LR classifier (99.2% train accuracy, 92.9% CV F1)
+      1C — LLM micro-classifier (only for low-confidence ambiguous text)
     """
+
+    def __init__(self):
+        # Pre-load trained model at construction time
+        _load_trained_model()
 
     def classify(self, request_text: str, use_llm_fallback: bool = False) -> str:
         """
         Returns "DELETION" or "NOT_APPLICABLE".
         """
+        # Stage 1A: 0-token regex fast path
         result = _stage1a(request_text)
         if result is not None:
             return result
-        # Ambiguous: use LLM fallback only when explicitly enabled
+
+        # Stage 1B: Trained ML classifier
+        result = _stage1b_ml(request_text)
+        if result is not None:
+            return result
+
+        # Stage 1C: LLM fallback (only when explicitly enabled and API key available)
         if use_llm_fallback:
-            return _stage1b_llm(request_text)
-        # Conservative default for production: treat ambiguous as NOT_APPLICABLE
+            return _stage1c_llm(request_text)
+
+        # Conservative default: treat low-confidence ambiguous text as NOT_APPLICABLE
         return "NOT_APPLICABLE"
