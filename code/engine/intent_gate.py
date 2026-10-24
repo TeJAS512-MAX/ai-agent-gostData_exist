@@ -246,3 +246,59 @@ class IntentGate:
 
         # Conservative default: treat low-confidence ambiguous text as NOT_APPLICABLE
         return "NOT_APPLICABLE"
+
+    @classmethod
+    def analyze_intent(cls, request_text: str) -> dict:
+        """
+        Comprehensive production uncertainty and intent analysis.
+        Returns calibrated probability, confidence margin, Shannon entropy, and OOD detection.
+        """
+        import numpy as np
+
+        # 1. Check Stage 1A
+        s1a = _stage1a(request_text)
+        if s1a is not None:
+            return {
+                "decision": s1a,
+                "tier": "STAGE_1A_DETERMINISTIC_REGEX",
+                "prob_deletion": 1.0 if s1a == "DELETION" else 0.0,
+                "prob_non_deletion": 0.0 if s1a == "DELETION" else 1.0,
+                "confidence": 1.0,
+                "entropy": 0.0,
+                "is_out_of_distribution": False,
+            }
+
+        # 2. Check Stage 1B Reality Ensemble
+        clf = _load_trained_model()
+        if clf is not None:
+            try:
+                proba = clf.predict_proba([request_text])[0]
+                p_non, p_del = float(proba[0]), float(proba[1])
+                eps = 1e-12
+                p0 = max(eps, p_non)
+                p1 = max(eps, p_del)
+                entropy = float(-(p0 * np.log2(p0) + p1 * np.log2(p1)))
+                confidence = float(abs(p_del - p_non))
+                is_ood = bool(entropy > 0.85 or confidence < 0.30)
+                decision = "DELETION" if p_del >= 0.5 else "NOT_APPLICABLE"
+                return {
+                    "decision": decision,
+                    "tier": "STAGE_1B_REALITY_ENSEMBLE",
+                    "prob_deletion": p_del,
+                    "prob_non_deletion": p_non,
+                    "confidence": confidence,
+                    "entropy": entropy,
+                    "is_out_of_distribution": is_ood,
+                }
+            except Exception as exc:
+                logger.debug("Stage 1B ML probability calculation failed: %s", exc)
+
+        return {
+            "decision": "NOT_APPLICABLE",
+            "tier": "CONSERVATIVE_FALLBACK",
+            "prob_deletion": 0.0,
+            "prob_non_deletion": 1.0,
+            "confidence": 0.5,
+            "entropy": 1.0,
+            "is_out_of_distribution": True,
+        }

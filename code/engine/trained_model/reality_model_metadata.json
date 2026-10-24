@@ -1,0 +1,52 @@
+{
+  "model_name": "RealityEnsembleClassifier",
+  "version": "4.0.0-enterprise",
+  "total_training_samples": 4790,
+  "deletion_samples": 1724,
+  "non_deletion_samples": 3066,
+  "cv_5fold_macro_f1": 0.9847,
+  "cv_5fold_accuracy": 0.986,
+  "train_macro_f1": 0.9991,
+  "train_accuracy": 0.9992,
+  "partitions_count": 24,
+  "partition_breakdown": {
+    "Bitext_Delete_bitext_customer_support": 995,
+    "Bitext_NonDelete_bitext_customer_support": 1496,
+    "CLINC_InDomain_clinc_oos_eval": 400,
+    "CLINC_OOS_clinc_oos_eval": 100,
+    "Custom_bitext_privacy_benchmark": 1000,
+    "Custom_clinc_non_deletion": 500,
+    "Custom_multilingual_dsar_privacy": 44,
+    "Dataset_A_Official_Samples": 160,
+    "Dataset_B_Multilingual_ar": 2,
+    "Dataset_B_Multilingual_de": 5,
+    "Dataset_B_Multilingual_en": 10,
+    "Dataset_B_Multilingual_es": 4,
+    "Dataset_B_Multilingual_fr": 4,
+    "Dataset_B_Multilingual_it": 3,
+    "Dataset_B_Multilingual_ja": 3,
+    "Dataset_B_Multilingual_ko": 2,
+    "Dataset_B_Multilingual_nl": 2,
+    "Dataset_B_Multilingual_pt": 3,
+    "Dataset_B_Multilingual_ru": 2,
+    "Dataset_B_Multilingual_zh": 2,
+    "Dataset_C_DSAR_NonDeletion": 16,
+    "Dataset_D_Adversarial_Negations": 15,
+    "Dataset_E_Account_Maintenance": 12,
+    "Dataset_F_Multi_Domain": 10
+  },
+  "pipeline_components": [
+    "word_tfidf (1-3 n-grams, unicode accents stripped, max 35,000 features)",
+    "char_tfidf (2-5 n-grams char_wb, non-Latin script preserving, max 45,000 features)",
+    "CalibratedClassifierCV(LogisticRegression(C=4.0, class_weight='balanced', max_iter=2000), cv=3)",
+    "CalibratedClassifierCV(LinearSVC(C=1.5, class_weight='balanced', max_iter=3000), cv=3)",
+    "ComplementNB(alpha=0.3, norm=True)",
+    "VotingClassifier (soft voting with weights [2.5, 2.5, 1.0])"
+  ],
+  "total_feature_dimensions": 39368,
+  "epistemic_uncertainty_thresholds": {
+    "entropy_ood_threshold": 0.85,
+    "confidence_margin_threshold": 0.3
+  },
+  "created_at": "2026-10-24 19:22:43 UTC"
+}
