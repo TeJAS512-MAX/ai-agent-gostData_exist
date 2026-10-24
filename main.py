@@ -149,8 +149,7 @@ def run_batch(input_path: str, output_path: str, dataset_dir: str):
     total_time = time.time() - t1
 
     out_df = pd.DataFrame(results)
-    out_df["_sort"] = out_df["case_id"].apply(_case_sort_key)
-    out_df = out_df.sort_values("_sort").drop(columns=["_sort"])
+    out_df = out_df.sort_values("case_id")
     out_df.to_csv(output_path, index=False)
 
     print("\n" + "=" * 70)
