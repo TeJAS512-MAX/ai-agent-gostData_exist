@@ -1,16 +1,15 @@
 """
 ================================================================================
- Northstar Shop — LLM Client & Neural Transducer Adapter
+ Northstar Shop -- Multi-Provider LLM Client & Neural Transducer Adapter
 ================================================================================
 
-Provides unified, robust access to frontier & free-tier LLM models via
-OpenRouter / Google Gemini for:
-  1. Semantic Intent Classification (Stage 1C)
-  2. Evidence Cross-Verification & Quote Grounding (Stage 4)
-  3. Executive Compliance Briefing & Audit Justifications (Stages 5/6)
+Provides unified, robust access to frontier & free-tier LLM models via:
+  1. Google Gemini API (using GEMINI_API_KEY directly via Google Generative Language REST)
+  2. OpenRouter API (using OPENROUTER_API_KEY as fallback)
+  3. Offline Symbolic Inference (0 token cost fallback)
 
-Automatically falls back to local symbolic inference if API keys are absent
-or network requests encounter rate limits / timeouts.
+Handles rate limits, invalid keys, depleted credits, and timeouts gracefully
+without crashing or throwing unhandled terminal exceptions.
 """
 
 import os
@@ -20,7 +19,7 @@ import urllib.request
 import urllib.error
 from typing import Any, Dict, List, Optional
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("LLMClient")
 
 # Try loading .env if python-dotenv is installed
 try:
@@ -32,30 +31,28 @@ except ImportError:
 
 class LLMClient:
     """
-    Unified LLM Client connecting to OpenRouter / Gemini API.
+    Unified, fault-tolerant LLM Client connecting to Google Gemini and OpenRouter.
     """
 
     def __init__(
         self,
-        api_key: Optional[str] = None,
+        gemini_key: Optional[str] = None,
+        openrouter_key: Optional[str] = None,
         model: Optional[str] = None,
-        timeout: int = 20,
+        timeout: int = 15,
     ):
-        self.api_key = (
-            api_key
-            or os.getenv("OPENROUTER_API_KEY")
-            or os.getenv("GEMINI_API_KEY")
-        )
-        self.model = (
-            model
-            or os.getenv("OPENROUTER_MODEL")
-            or "openrouter/free"
-        )
+        self.gemini_key = gemini_key or os.getenv("GEMINI_API_KEY")
+        self.openrouter_key = openrouter_key or os.getenv("OPENROUTER_API_KEY")
+        self.model = model or os.getenv("DEFAULT_MODEL") or os.getenv("OPENROUTER_MODEL") or "gemini-2.5-flash"
         self.timeout = timeout
-        self.is_active = bool(self.api_key)
 
-        if self.is_active:
-            masked = self.api_key[:8] + "..." + self.api_key[-4:] if len(self.api_key) > 12 else "***"
+        self.is_active = bool(self.gemini_key or self.openrouter_key)
+
+        if self.gemini_key:
+            masked = self.gemini_key[:6] + "..." + self.gemini_key[-4:] if len(self.gemini_key) > 10 else "***"
+            logger.info("LLMClient initialized: Provider=Google Gemini Key=%s", masked)
+        elif self.openrouter_key:
+            masked = self.openrouter_key[:6] + "..." + self.openrouter_key[-4:] if len(self.openrouter_key) > 10 else "***"
             logger.info("LLMClient initialized: Provider=OpenRouter Model=%s Key=%s", self.model, masked)
         else:
             logger.debug("LLMClient initialized in offline/symbolic mode (no API key detected)")
@@ -67,11 +64,84 @@ class LLMClient:
         temperature: float = 0.0,
     ) -> Optional[str]:
         """
-        Send a chat completion request to the OpenRouter API.
+        Sends chat completion, trying Google Gemini first, then OpenRouter, then local fallback.
         """
-        if not self.api_key:
-            return None
+        # 1. Try Google Gemini API if key is present
+        if self.gemini_key:
+            res = self._call_gemini(messages, max_tokens, temperature)
+            if res:
+                return res
 
+        # 2. Try OpenRouter API if key is present
+        if self.openrouter_key:
+            res = self._call_openrouter(messages, max_tokens, temperature)
+            if res:
+                return res
+
+        return None
+
+    def _call_gemini(
+        self,
+        messages: List[Dict[str, str]],
+        max_tokens: int = 300,
+        temperature: float = 0.0
+    ) -> Optional[str]:
+        """Calls Google Generative Language REST API."""
+        prompt_parts = []
+        for m in messages:
+            role = m.get("role", "user")
+            content = m.get("content", "")
+            if role == "system":
+                prompt_parts.append(f"System Instructions: {content}\n")
+            else:
+                prompt_parts.append(content)
+        full_prompt = "\n".join(prompt_parts)
+
+        # Candidate models supported by Gemini API
+        gemini_models = ["gemini-2.5-flash", "gemini-3.8-flash", "gemini-flash-latest"]
+        for g_model in gemini_models:
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{g_model}:generateContent?key={self.gemini_key}"
+            payload = json.dumps({
+                "contents": [
+                    {
+                        "parts": [{"text": full_prompt}]
+                    }
+                ],
+                "generationConfig": {
+                    "maxOutputTokens": max_tokens,
+                    "temperature": temperature
+                }
+            }).encode("utf-8")
+
+            headers = {"Content-Type": "application/json"}
+            req = urllib.request.Request(url, data=payload, headers=headers, method="POST")
+
+            try:
+                with urllib.request.urlopen(req, timeout=self.timeout) as resp:
+                    if resp.status == 200:
+                        data = json.loads(resp.read().decode("utf-8"))
+                        candidates = data.get("candidates", [])
+                        if candidates:
+                            parts = candidates[0].get("content", {}).get("parts", [])
+                            if parts:
+                                return parts[0].get("text", "").strip()
+            except urllib.error.HTTPError as exc:
+                # 402 = Payment/quota exhausted, 404 = Model deprecation
+                if exc.code in [402, 404]:
+                    continue
+                logger.debug("Gemini API HTTP %d for %s: %s", exc.code, g_model, exc)
+            except Exception as exc:
+                logger.debug("Gemini API call failed (%s): %s", type(exc).__name__, exc)
+
+        return None
+
+    def _call_openrouter(
+        self,
+        messages: List[Dict[str, str]],
+        max_tokens: int = 300,
+        temperature: float = 0.0
+    ) -> Optional[str]:
+        """Calls OpenRouter Chat Completions endpoint."""
         url = "https://openrouter.ai/api/v1/chat/completions"
         payload = json.dumps({
             "model": self.model,
@@ -81,7 +151,7 @@ class LLMClient:
         }).encode("utf-8")
 
         headers = {
-            "Authorization": f"Bearer {self.api_key}",
+            "Authorization": f"Bearer {self.openrouter_key}",
             "Content-Type": "application/json",
             "HTTP-Referer": "https://github.com/TeJAS512-MAX/ai-agent-hackerank",
             "X-Title": "Northstar Shop Deletion Audit Agent",
@@ -97,7 +167,7 @@ class LLMClient:
                     content = choices[0].get("message", {}).get("content", "")
                     return content.strip() if content else None
         except Exception as exc:
-            logger.warning("LLM API call failed (%s): %s", type(exc).__name__, exc)
+            logger.debug("OpenRouter call failed (%s): %s", type(exc).__name__, exc)
             return None
 
     def classify_intent(self, request_text: str) -> Optional[Dict[str, Any]]:
