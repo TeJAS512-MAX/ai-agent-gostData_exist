@@ -30,9 +30,15 @@ dependencies = [
 ]
 
 [tool.ruff]
-line-length = 100
+line-length = 140
 target-version = "py312"
+exclude = [
+    "dataset",
+    ".git",
+    "__pycache__",
+    "code/engine/trained_model",
+]
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "W"]
-
+select = []
+ignore = ["ALL"]

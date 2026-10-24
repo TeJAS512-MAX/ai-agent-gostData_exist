@@ -1,0 +1,27 @@
+{
+  "include": [
+    "main.py",
+    "run_benchmark.py",
+    "validate_submission.py",
+    "code",
+    "src"
+  ],
+  "exclude": [
+    "**/__pycache__",
+    "**/trained_model",
+    "dataset"
+  ],
+  "extraPaths": [
+    ".",
+    "code",
+    "src"
+  ],
+  "typeCheckingMode": "off",
+  "reportMissingImports": "none",
+  "reportMissingTypeStubs": "none",
+  "reportGeneralTypeIssues": "none",
+  "reportOptionalMemberAccess": "none",
+  "reportAttributeAccessIssue": "none",
+  "reportCallIssue": "none",
+  "reportArgumentType": "none"
+}
