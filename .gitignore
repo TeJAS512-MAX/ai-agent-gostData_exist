@@ -40,3 +40,8 @@ Thumbs.db
 data/raw/*.tmp
 outputs/*.tmp
 
+# Scratch analysis files
+scratch_*.*
+hackerrank-orchestrate-october26-main/
+hackerrank_repo/
+
