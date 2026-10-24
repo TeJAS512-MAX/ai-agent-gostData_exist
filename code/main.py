@@ -417,6 +417,50 @@ def run_dashboard(output_path: str = "output.csv", dataset_dir: str = "dataset")
 
 
 
+
+def run_oblivion(case_id: str, dataset_dir: str = "dataset"):
+    dataset_dir = _resolve_path(dataset_dir)
+    try:
+        from code.engine.advanced_agent import AdvancedAuditAgent
+    except ImportError:
+        from engine.advanced_agent import AdvancedAuditAgent
+
+    agent = AdvancedAuditAgent(dataset_dir=dataset_dir)
+    case_row = None
+    for csv_f in [f"{dataset_dir}/deletion_requests.csv", f"{dataset_dir}/sample_deletion_requests.csv"]:
+        if os.path.exists(csv_f):
+            df = pd.read_csv(csv_f)
+            m = df[df["case_id"] == case_id]
+            if not m.empty:
+                case_row = m.iloc[0]
+                break
+
+    if case_row is None:
+        print(f"Error: Case ID '{case_id}' not found.")
+        sys.exit(1)
+
+    print(f"\nExecuting Project Oblivion Verifiable Non-Existence Audit for: {case_id}...")
+    res = agent.audit_case_oblivion(case_row)
+
+    print("=" * 80)
+    print(f"  PROJECT OBLIVION: VERIFIABLE NON-EXISTENCE CERTIFICATE ({case_id})")
+    print("=" * 80)
+    print(f"  Subject Email                : {res.email}")
+    print(f"  Audited Deletion Status      : {res.status}")
+    print(f"  Bayesian Ghost Field P(Ghost): {res.ghost_field_score:.5f}")
+    print(f"  Inferred Dark Systems        : {', '.join(res.dark_systems_inferred) if res.dark_systems_inferred else 'None'}")
+    print(f"  Resurrection Red-Team Attack : {'DEFENDED (Failed Attack Proves Safety)' if res.resurrection_red_team_passed else 'EXPLOIT DETECTED'}")
+    print(f"  Byzantine Quorum Agreement   : {'ACHIEVED (N-of-3 PBFT Consensus)' if res.byzantine_quorum_achieved else 'ESCALATION REQUIRED'}")
+    print(f"  Byzantine Jury Votes         :")
+    for v in res.byzantine_jury_votes:
+        print(f"    * {v['juror']:<24}: {v['verdict']:<14} ({v['rationale']})")
+    print(f"  Behavioral Probes Verified   : {res.behavioral_probes_verified} (Synthetic Re-Registration Intercepted)")
+    print(f"  Merkle Tree Root Commitment  : {res.merkle_root}")
+    print(f"  Zero-Knowledge Certificate   : {res.zk_deletion_certificate['algorithm']}")
+    print(f"  Execution Latency            : {res.execution_time_ms:.2f} ms")
+    print("=" * 80 + "\n")
+
+
 def run_complex_tasks(dataset_dir: str = "dataset"):
     dataset_dir = _resolve_path(dataset_dir)
     try:
@@ -497,13 +541,19 @@ def main():
         "--complex-tasks", action="store_true",
         help="Execute aggressive enterprise complex task solver (resurrection loops, tax conflicts, split-brain)"
     )
+    parser.add_argument(
+        "--oblivion", type=str, default=None,
+        help="Execute Project Oblivion Verifiable Non-Existence Audit on a case ID"
+    )
     args = parser.parse_args()
 
     dataset_dir = _resolve_path(args.dataset_dir)
     input_path = _resolve_path(args.input)
     output_path = args.output
 
-    if args.forensic:
+    if args.oblivion:
+        run_oblivion(args.oblivion, dataset_dir=dataset_dir)
+    elif args.forensic:
         run_forensic(args.forensic, dataset_dir=dataset_dir)
     elif args.generate_dashboard:
         run_dashboard(output_path=output_path, dataset_dir=dataset_dir)

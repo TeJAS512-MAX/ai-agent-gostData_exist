@@ -225,6 +225,15 @@ class CaseBlackboard(BaseModel):
     agent_trace: List[AgentCallRecord] = Field(default_factory=list)
     errors: List[AgentError] = Field(default_factory=list)
 
+    # ── Project Oblivion (Verifiable Non-Existence Framework) ─────────────────
+    ghost_field_score: float = 0.0
+    dark_systems_inferred: List[str] = Field(default_factory=list)
+    resurrection_red_team_passed: bool = True
+    byzantine_quorum_achieved: bool = True
+    byzantine_jury_votes: List[Dict[str, Any]] = Field(default_factory=list)
+    behavioral_probes_verified: bool = True
+    merkle_tree_root: Optional[str] = None
+
     # ── Runtime-only private attributes (not serialised) ──────────────────────
     # Idempotency set: keys already committed this session
     _committed_keys: set = PrivateAttr(default_factory=set)

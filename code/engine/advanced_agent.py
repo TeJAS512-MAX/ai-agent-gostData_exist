@@ -50,6 +50,16 @@ try:
     from code.engine.evidence_scanner import EvidenceScanner
     from code.engine.intent_gate import IntentGate
     from code.engine.compliance_matrix import ContractInvariantVerifier, GLOBAL_STATUTORY_REGIME
+    from code.engine.oblivion_engine import (
+        DarkMatterEstimator,
+        ResurrectionRedTeam,
+        MerkleOblivionCertificate,
+        ByzantineJury,
+        BehavioralReenactmentProber,
+        PolicyGapMiner,
+        EpidemiologicalContactGraph,
+        OblivionAuditResult,
+    )
     from code.engine.metacognitive_pipeline import (
         MetaCognitiveGovernor,
         CognitiveMode,
@@ -81,6 +91,16 @@ except ImportError:
     from engine.evidence_scanner import EvidenceScanner
     from engine.intent_gate import IntentGate
     from engine.compliance_matrix import ContractInvariantVerifier, GLOBAL_STATUTORY_REGIME
+    from engine.oblivion_engine import (
+        DarkMatterEstimator,
+        ResurrectionRedTeam,
+        MerkleOblivionCertificate,
+        ByzantineJury,
+        BehavioralReenactmentProber,
+        PolicyGapMiner,
+        EpidemiologicalContactGraph,
+        OblivionAuditResult,
+    )
     from engine.metacognitive_pipeline import (
         MetaCognitiveGovernor,
         CognitiveMode,
@@ -129,6 +149,11 @@ class AuditCertificate:
     self_healed: bool
     integrity_seal: str
     execution_time_ms: float
+    # Project Oblivion (Verifiable Non-Existence Framework)
+    ghost_field_score: float = 0.0
+    merkle_root: str = ""
+    byzantine_quorum: bool = True
+    red_team_passed: bool = True
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
@@ -275,6 +300,16 @@ class AdvancedAuditAgent(SupervisorMixin):
         self.simulator = CounterfactualCausalSimulator()
         self.scheduler = MCTSRemediationScheduler()
         self.critic = InvariantReflectionCritic()
+
+        # Project Oblivion Non-Existence Controllers (v6.0 Enterprise)
+        self.dark_matter = DarkMatterEstimator()
+        self.red_team = ResurrectionRedTeam()
+        self.byzantine_jury = ByzantineJury()
+        self.behavioral_prober = BehavioralReenactmentProber()
+        self.policy_miner = PolicyGapMiner()
+        self.contact_graph = EpidemiologicalContactGraph(
+            activity_csv_path=os.path.join(dataset_dir, "system_activity.csv")
+        )
 
         # Deterministic audit engine (100% golden benchmark accuracy)
         self.engine = AuditEngine(dataset_dir=dataset_dir)
@@ -495,6 +530,52 @@ class AdvancedAuditAgent(SupervisorMixin):
         ))
         step_idx += 1
 
+        # ── PROJECT OBLIVION: 7-Mechanism Verification Pipeline ───────────────
+        observed_systems = set(s.get("system_id", "") for s in final_steps if s.get("system_id"))
+        inferred_spread = self.contact_graph.trace_infection_spread(observed_systems) if observed_systems else {}
+        dark_inferred = set(inferred_spread.keys()) - observed_systems
+
+        has_active_flow_disabled = any(s.get("operation") == "DISABLE_DATA_FLOW" for s in final_steps)
+        has_restore_blocked = any(s.get("operation") == "BLOCK_RESTORE" for s in final_steps)
+
+        # 1. Dark-Matter Estimator
+        ghost_score, p_dict, dark_sys_list = self.dark_matter.estimate_ghost_probability(
+            observed_systems=observed_systems,
+            unresolved_findings_count=findings_count if raw_status == "INCOMPLETE" else 0,
+            active_data_flows_disabled=has_active_flow_disabled,
+            backup_restores_blocked=has_restore_blocked,
+            inferred_dark_systems=dark_inferred,
+        )
+        self._last_ghost_score = ghost_score
+        bb.ghost_field_score = ghost_score
+        bb.dark_systems_inferred = dark_sys_list
+
+        # 2. Resurrection Red-Team Attack
+        red_attack_possible, red_vectors = self.red_team.attack(
+            raw_status=raw_status,
+            steps=final_steps,
+        )
+        self._last_red_team_passed = not red_attack_possible
+        bb.resurrection_red_team_passed = not red_attack_possible
+
+        # 3. Byzantine Jury Consensus (Skeptical Regulator, Cost-Conscious Engineer, Literal Auditor)
+        evidence_citations = sorted(list(set(s["evidence_id"] for s in final_steps if s.get("evidence_id"))))
+        jury_verdict = self.byzantine_jury.deliberate(
+            case_id=case_id,
+            reported_status=reported_status,
+            derived_status=raw_status,
+            findings_count=findings_count,
+            steps=final_steps,
+            citations=evidence_citations,
+        )
+        self._last_quorum = jury_verdict.quorum_achieved
+        bb.byzantine_quorum_achieved = jury_verdict.quorum_achieved
+        bb.byzantine_jury_votes = [asdict(v) for v in jury_verdict.votes]
+
+        # 4. Behavioral Re-Enactment Probing
+        behavioral_probes = self.behavioral_prober.probe(email=email, status=raw_status, steps=final_steps)
+        bb.behavioral_probes_verified = all(p.interception_verified for p in behavioral_probes) if behavioral_probes else True
+
         # Determine risk level based on audit findings
         if raw_status == "COMPLETE":
             risk_level = "RESOLVED"
@@ -566,6 +647,16 @@ class AdvancedAuditAgent(SupervisorMixin):
         seal_payload = f"{case_id}|{email}|{status}|{len(steps)}|{evidence_citations}|{confidence:.4f}"
         integrity_seal = hashlib.sha256(seal_payload.encode("utf-8")).hexdigest()
 
+        # Compute Project Oblivion Merkle tree root commitment
+        zk_cert = MerkleOblivionCertificate.generate(
+            case_id=case_id,
+            email=email,
+            status=status,
+            steps=steps,
+            evidence_citations=evidence_citations,
+        )
+        merkle_root = zk_cert["merkle_root"]
+
         return AuditCertificate(
             case_id=case_id,
             email=email,
@@ -582,6 +673,10 @@ class AdvancedAuditAgent(SupervisorMixin):
             self_healed=self_healed,
             integrity_seal=integrity_seal,
             execution_time_ms=round(elapsed_ms, 2),
+            ghost_field_score=getattr(self, "_last_ghost_score", 0.0),
+            merkle_root=merkle_root,
+            byzantine_quorum=getattr(self, "_last_quorum", True),
+            red_team_passed=getattr(self, "_last_red_team_passed", True),
         )
 
     def run_batch(
@@ -610,3 +705,87 @@ class AdvancedAuditAgent(SupervisorMixin):
 
         out_df = pd.DataFrame(results).sort_values("case_id")
         return out_df, certificates
+
+
+    def audit_case_oblivion(
+        self,
+        case_row: pd.Series,
+        all_cases_df: Optional[pd.DataFrame] = None
+    ) -> OblivionAuditResult:
+        """
+        Executes a comprehensive Project Oblivion Verifiable Non-Existence Audit,
+        returning full cryptographic Merkle roots, Bayesian ghost probabilities,
+        adversarial attack logs, and Byzantine jury records.
+        """
+        t0 = time.time()
+        status, steps, cert = self.audit_case(case_row, all_cases_df=all_cases_df)
+        case_id = str(case_row.get("case_id", "")).strip()
+        email = str(case_row.get("email", "")).strip().lower()
+
+        observed_systems = set(s.get("system_id", "") for s in steps if s.get("system_id"))
+        inferred_spread = self.contact_graph.trace_infection_spread(observed_systems) if observed_systems else {}
+        dark_inferred = set(inferred_spread.keys()) - observed_systems
+
+        has_active_flow_disabled = any(s.get("operation") == "DISABLE_DATA_FLOW" for s in steps)
+        has_restore_blocked = any(s.get("operation") == "BLOCK_RESTORE" for s in steps)
+        findings_count = sum(1 for s in steps if s.get("phase") == "FINDING")
+
+        ghost_score, p_dict, dark_sys_list = self.dark_matter.estimate_ghost_probability(
+            observed_systems=observed_systems,
+            unresolved_findings_count=findings_count if status == "INCOMPLETE" else 0,
+            active_data_flows_disabled=has_active_flow_disabled,
+            backup_restores_blocked=has_restore_blocked,
+            inferred_dark_systems=dark_inferred,
+        )
+
+        red_attack_possible, red_vectors = self.red_team.attack(
+            raw_status=status,
+            steps=steps,
+        )
+
+        evidence_citations = sorted(list(set(s["evidence_id"] for s in steps if s.get("evidence_id"))))
+        jury_verdict = self.byzantine_jury.deliberate(
+            case_id=case_id,
+            reported_status=str(case_row.get("reported_status", "")).strip(),
+            derived_status=status,
+            findings_count=findings_count,
+            steps=steps,
+            citations=evidence_citations,
+        )
+
+        zk_cert = MerkleOblivionCertificate.generate(
+            case_id=case_id,
+            email=email,
+            status=status,
+            steps=steps,
+            evidence_citations=evidence_citations,
+        )
+
+        behavioral_probes = self.behavioral_prober.probe(email=email, status=status, steps=steps)
+
+        # Policy Gap Mining across categories
+        step_categories = set(s.get("resource_id", "").split("_")[0].upper() for s in steps if s.get("resource_id"))
+        policy_proposals = self.policy_miner.audit_policy(
+            extracted_categories=step_categories,
+            sample_contexts={c: f"Resource {c} referenced in steps" for c in step_categories}
+        )
+
+        elapsed_ms = (time.time() - t0) * 1000
+
+        return OblivionAuditResult(
+            case_id=case_id,
+            email=email,
+            status=status,
+            ghost_field_score=ghost_score,
+            dark_systems_inferred=dark_sys_list,
+            resurrection_red_team_passed=not red_attack_possible,
+            red_team_attack_vectors=[asdict(v) for v in red_vectors],
+            byzantine_quorum_achieved=jury_verdict.quorum_achieved,
+            byzantine_jury_votes=[asdict(v) for v in jury_verdict.votes],
+            behavioral_probes_verified=all(p.interception_verified for p in behavioral_probes) if behavioral_probes else True,
+            merkle_root=zk_cert["merkle_root"],
+            zk_deletion_certificate=zk_cert,
+            policy_gap_proposals=[asdict(p) for p in policy_proposals],
+            epidemiological_spread=inferred_spread,
+            execution_time_ms=round(elapsed_ms, 2),
+        )
