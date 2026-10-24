@@ -26,8 +26,8 @@ class Config:
     OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
     ANTHROPIC_API_KEY: str = os.getenv("ANTHROPIC_API_KEY", "")
     
-    # OpenRouter Model Preference
-    OPENROUTER_MODEL: str = os.getenv("OPENROUTER_MODEL", "meta-llama/llama-3.3-70b-instruct")
+    # OpenRouter Model Preference (openrouter/free routes to best available free model)
+    OPENROUTER_MODEL: str = os.getenv("OPENROUTER_MODEL", "openrouter/free")
 
     @classmethod
     def get_active_model(cls) -> str:

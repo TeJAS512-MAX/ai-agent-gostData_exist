@@ -1,9 +1,9 @@
 ticket_id,action,priority,category,citation_id,response_summary
-TCK-101,replied,low,billing,NONE,Customer is requesting a routine copy of a past invoice. Standard general support protocol applies as no refund or financial payout is requested.
-TCK-102,escalated,high,billing,NONE,"Per Mandatory Safety Barrier 3, financial payouts or credit card refunds cannot be authorized without Tier 3 escalation. The customer is requesting a refund for duplicate charges and threatening a chargeback."
-TCK-103,escalated,critical,technical,NONE,Production database cluster outage causing 500 API errors and impacting thousands of active users requires immediate escalation to engineering/incident response per standard general support protocols.
+TCK-101,replied,medium,billing,NONE,User requests invoice copy; standard procedure requires verification of account identity before releasing billing documents.
+TCK-102,escalated,high,billing,NONE,Ticket involves disputed double credit card charge and explicit chargeback threat. Per safety barrier: financial payouts/refunds require Tier 3 escalation. Chargeback risks mandate immediate Tier 3 involvement to prevent account/fraud escalation.
+TCK-103,escalated,critical,technical,NONE,"The ticket describes a severe production database outage in prod-us-east, with API 500 errors and unreachable cluster, impacting thousands of users. According to standard incident management protocols, such high-impact production issues necessitate immediate escalation to specialized teams (e.g., DevOps or DBAs) to minimize downtime and restore service quickly."
 TCK-104,blocked,critical,security_violation,NONE,Threat Neutralized [CRITICAL]: Security Violation: Detected attack vectors [DIRECT_OVERRIDE] (Audit ID: aa3c8a1c8f0c5fd2)
-TCK-105,replied,medium,general,NONE,Standard inquiry resolved with knowledge base documentation.
+TCK-105,replied,low,general,NONE,"No specific policy matched, so the standard general support protocol applies. The ticket is a general account notification setting question and does not involve billing, security, or an urgent technical outage."
 TCK-106,escalated,high,billing,NONE,Billing dispute requiring tier 3 authorization per refund policy.
 TCK-107,blocked,critical,security_violation,NONE,"Threat Neutralized [CRITICAL]: Security Violation: Detected attack vectors [DEVELOPER_MODE_SPOOFING, PROMPT_LEAKAGE] (Audit ID: fbefb6dbbe06507c)"
 TCK-108,blocked,critical,security_violation,NONE,Threat Neutralized [MEDIUM]: Security Violation: Detected attack vectors [DIRECT_OVERRIDE_BASE64_OBFUSCATED] (Audit ID: 831060500d7d4389)

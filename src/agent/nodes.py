@@ -121,9 +121,43 @@ def reasoning_node(state: AgentState) -> dict:
             security_metadata=security
         )
         return {"decision": decision, "raw_response": content}
-    except Exception as e:
+    except Exception as primary_err:
+        # Automated Failover: Try OpenRouter Free if primary provider hits an error
+        if Config.OPENROUTER_API_KEY and not model_name.startswith("openrouter/"):
+            try:
+                response = litellm.completion(
+                    model=f"openrouter/{Config.OPENROUTER_MODEL}",
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt}
+                    ],
+                    temperature=0.0,
+                    response_format={"type": "json_object"},
+                    api_key=Config.OPENROUTER_API_KEY
+                )
+                content = response.choices[0].message.content
+                data = json.loads(content)
+                draft = data.get("response_draft", "")
+                _, safe_draft = SecurityGuardrails.verify_output(draft)
+
+                decision = AgentDecision(
+                    ticket_id=ticket.ticket_id,
+                    action=TriageAction(data.get("action", "escalated").lower()),
+                    priority=PriorityLevel(data.get("priority", "medium").lower()),
+                    category=data.get("category", "general"),
+                    justification=data.get("justification", "Grounded by triage policy (Failover via OpenRouter)."),
+                    response_draft=safe_draft,
+                    citations=citations,
+                    requires_human=(data.get("action") == "escalated"),
+                    injection_detected=False,
+                    security_metadata=security
+                )
+                return {"decision": decision, "raw_response": content}
+            except Exception:
+                pass
+
         fallback = _heuristic_reasoning(ticket, citations, security)
-        fallback["error"] = str(e)
+        fallback["error"] = str(primary_err)
         return fallback
 
 def _heuristic_reasoning(ticket, citations, security) -> dict:
