@@ -256,3 +256,28 @@ branch=main
 repo_root=C:\Users\sathw\OneDrive\Desktop\HACKERANK
 worktree=main
 parent_agent=none
+
+
+## [2026-10-24T23:18:00+05:30] Custom Dataset Ingestion & Dual-Path Model Training Pipeline
+
+User Prompt (verbatim, secrets redacted):
+can i train this model with other data sets
+
+Agent Response Summary:
+Enhanced code/engine/intent_classifier_trainer.py to support full custom dataset ingestion across CSV, JSON, and JSONL formats with comprehensive CLI arguments (--custom-data, --skip-built-in, --output-model, --output-report). Verified seamless training on custom corpora, maintained 100% stress-test accuracy, re-verified golden benchmark (100% exact sequence match), rebuilt code.zip, and pushed changes to remote repository.
+
+Actions:
+* Added load_custom_dataset() to code/engine/intent_classifier_trainer.py supporting auto-mapping of CSV columns and JSON object attributes
+* Added CLI argument parser (argparse) with flags -c / --custom-data, --skip-built-in, -o / --output-model, and -r / --output-report
+* Validated cross-validation score (0.847 Macro F1) and 100% stress-test pass rate
+* Rebuilt code.zip (192.3 KB, 26 files) containing updated trainer and pristine model artifact
+* Verified submission output.csv with 0 contract errors
+* Committed and pushed commit 1a714c0 to GitHub origin/main
+
+Context:
+tool=Antigravity
+model=gemini-3.8-flash
+branch=main
+repo_root=C:\Users\sathw\OneDrive\Desktop\HACKERANK
+worktree=main
+parent_agent=none
