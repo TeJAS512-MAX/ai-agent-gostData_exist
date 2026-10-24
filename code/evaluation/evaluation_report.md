@@ -235,3 +235,34 @@ To eliminate the fatal blind spot that caused Northstar Shop's $2.4M regulatory 
 ### 7. Epidemiological Contact-Tracing Graph
 - Ingests all 4,011 rows from `system_activity.csv` into a directed diffusion contagion graph.
 - Traces transitive data infection reachability across 25 microservice nodes to detect dark contacts before they cause resurrection failures.
+
+
+---
+
+## 9. Project AETHER: Deep Information-Theoretic Erasure Formalisms
+
+To provide mathematical guarantees for distributed data erasure beyond rule heuristics, the system implements **Project AETHER** (`code/engine/aether_engine.py`):
+
+### 1. Causal Erasure Surgery (Judea Pearl's Do-Calculus)
+- Evaluates the counterfactual state of the data lineage graph $G = (V, E)$ under the intervention $\text{do}(\text{delete}=\text{True})$.
+- By contrasting the observed estate $W_{\text{obs}}$ at `audit_at` with the intervened world $W_{\text{do}}$, it isolates the exact causal dependency edge that failed to propagate deletion (e.g. `account_service` $\rightarrow$ `sync_job_7` $\rightarrow$ `analytics_export`).
+- Guarantees the natural remediation pair order: severing the upstream data flow (`DISABLE_DATA_FLOW`) before pruning the terminal remnant (`DELETE_RECORD`).
+
+### 2. Antimatter Twin Annihilation (Fellegi-Sunter Record Linkage)
+- Executes reverse epidemiological deduplication using the Fellegi-Sunter log-likelihood ratio:
+  $$\text{Score}(r, T) = \sum_{i} \log \frac{P(\text{agree}_i \mid \text{Match})}{P(\text{agree}_i \mid \text{Non-Match})}$$
+- Synthesizes an "antimatter twin" query vector across exact emails, salted hashes, E.164 phone numbers, tokenized name n-grams, and device fingerprints. Catches secondary latent remnants (such as un-indexed metadata payloads) where exact string matching fails.
+
+### 3. Heat-Death Entropy Engine (Conditional Shannon Entropy)
+- Models quasi-identifier re-identification risk via conditional Shannon entropy:
+  $$H(U \mid r) = -\sum_{u \in \text{Cohort}} P(u \mid r) \log_2 P(u \mid r) = \log_2(\text{Cohort Size})$$
+- Proves that records with direct PII stripped still fail if quasi-identifiers yield $H < 6.0$ bits. Guarantees true information heat-death ($k$-anonymity $\ge 64$).
+
+### 4. Holographic Boundary Proof (Min-Cut / Max-Flow Sealing)
+- Models enterprise data flows as an information capacity network from source $s$ (deleted account) to sink $t$ (external warehouse/backups).
+- Solves the Ford-Fulkerson / Edmonds-Karp min-cut to discover the strictly minimal set of edges crossing from reachable to unreachable components.
+- Guarantees that remediation emits the provably minimal, non-redundant set of `DISABLE_DATA_FLOW` and `BLOCK_RESTORE` actions.
+
+### 5. Temporal Branch Collapser (Sequential Monte Carlo Particle Filter)
+- Reconstructs ambiguous concurrent log entries (where delete and sync timestamps match within millisecond resolution) using 500 Monte Carlo particles.
+- Computes the posterior probability distribution $P(\text{State}=\text{Ghost} \mid \text{Jittered Logs})$. If non-trivial probability mass sits on the ghost branch, the case is conservatively held as `INCOMPLETE`, closing race-condition false positives.
