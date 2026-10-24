@@ -295,3 +295,4 @@ class AetherAuditVerdict:
     minimal_cut_bottlenecks: List[Tuple[str, str, float]]
     posterior_ghost_recreation_mass: float
     is_provably_annihilated: bool
+

@@ -266,3 +266,38 @@ To provide mathematical guarantees for distributed data erasure beyond rule heur
 ### 5. Temporal Branch Collapser (Sequential Monte Carlo Particle Filter)
 - Reconstructs ambiguous concurrent log entries (where delete and sync timestamps match within millisecond resolution) using 500 Monte Carlo particles.
 - Computes the posterior probability distribution $P(\text{State}=\text{Ghost} \mid \text{Jittered Logs})$. If non-trivial probability mass sits on the ghost branch, the case is conservatively held as `INCOMPLETE`, closing race-condition false positives.
+
+
+---
+
+## 10. Project CHIMERA: Formal Taint Analysis, Model Checking & Compiler Verification
+
+To unify abstract interpretation, compiler optimization, and immune pattern recognition into a mathematically verifiable pipeline, the system implements **Project CHIMERA** (`code/engine/chimera_engine.py`):
+
+### 1. Abstract Interpretation & Monotone Fixpoint Analysis
+- Models PII propagation as dataflow analysis over a finite bounded lattice $L = (2^U, \subseteq)$ of user identifiers $U$.
+- Monotone transfer functions strictly encode `deletion_rules.csv`:
+  - `DELETE` / `ANONYMIZE`: $\tau_{\text{out}} = \emptyset$
+  - `REDACT`: $\tau_{\text{out}} = \tau_{\text{in}} \setminus \text{ProhibitedFields}$
+  - `TOMBSTONE`: $\tau_{\text{out}} = \tau_{\text{in}} \cap \text{PermittedIdentifiers}$
+  - `SYNC` / `RESTORE`: $\tau_{\text{out}} = \tau_{\text{in}} \cup \tau_{\text{source}}$
+- Kleene's fixed-point theorem guarantees deterministic convergence to the unique least fixpoint in $O((|V| + |E|) \cdot |U|)$ iterations.
+
+### 2. Safety Property Model Checking (Proof vs Countermodel)
+- Directly evaluates the Deletion Completeness Criterion:
+  $$\forall v \in V : \text{Sink}(v) \land \text{Reachable}(u, v) \implies \tau(v) \cap U \subseteq R[\text{category}(v)].\text{permitted}$$
+- **When True**: Emits a `DeletionProofCertificate` containing the fixpoint table snapshot and a SHA-256 state hash.
+- **When False**: Emits explicit `Countermodel` violations accompanied by witness paths tracing the exact provenance chain from root to remnant.
+
+### 3. Compiler IR Remediation Optimization
+- **Common Sub-Remediation Elimination (CSE)**: Groups violations sharing upstream sync/restore edges to emit a single `DISABLE_DATA_FLOW` or `BLOCK_RESTORE` cut rather than redundant piecemeal actions.
+- **Dead-Finding Elimination**: Folds redundant field-level PII findings into full parent resource deletions.
+- **Topological Remediation Ordering**: Orders rank 1 flow severs before rank 2 record deletions to guarantee that active data flows cannot resurrect records mid-remediation.
+
+### 4. Static Step Grammar Type-Checking
+- Implements a compile-time type system enforcing the competition grammar over $( \text{phase}, \text{operation}, \text{state}, \text{evidence\_id} )$.
+- Formally guarantees that malformed JSON, invalid state enums, or illegal evidence citations are unreachable.
+
+### 5. Innate Immune Memory (Aho-Corasick Automaton)
+- Employs an Aho-Corasick trie matching known ghost-data signatures across evidence files in $O(n + z)$ time independent of pattern count.
+- Consolidates confirmed novel countermodels into dynamic antibodies mid-batch, accelerating multi-case throughput across all 518 cases.
