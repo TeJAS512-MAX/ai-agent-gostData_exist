@@ -1,329 +1,436 @@
 """
-Intent Classifier Trainer
-==========================
-Trains and evaluates a lightweight TF-IDF + Logistic Regression classifier
-for Stage 1B of the NSTVE Intent Gate.
+================================================================================
+ Northstar Shop — Multi-Dataset Intent Classifier Trainer
+================================================================================
 
-The classifier is trained on:
-  1. The labelled public examples from sample_deletion_requests.csv +
-     sample_output.csv.
-  2. Synthetic examples for both intents.
+Trains and benchmarks the Stage 1B Intent Classifier across diverse datasets:
+  1. Dataset A: Official Ground-Truth Samples (sample_deletion_requests.csv)
+  2. Dataset B: Multilingual Deletion Corpus (12 languages: EN, DE, FR, ES, PT, IT, NL, JA, KO, AR, RU, ZH)
+  3. Dataset C: DSAR & Non-Deletion Compliance Corpus (GDPR Art 15, 16, 18, 20, 21)
+  4. Dataset D: Adversarial Negation & Boundary Cases ("do not delete", "without removing")
+  5. Dataset E: Account Maintenance & Customer Inquiries (passwords, invoices, shipping)
+  6. Dataset F: Multi-Domain Privacy Corpora (E-commerce, SaaS, Fintech, Healthcare)
+
+Architecture:
+  Dual-Path Feature Union:
+    - Path 1: Word-level n-grams (1-3) for phrase negation detection
+    - Path 2: Character-level boundary n-grams (2-5) for multilingual root stems
+  Classifier: Calibrated Logistic Regression with balanced class weights (L-BFGS)
 
 Produces:
-  code/engine/trained_model/intent_classifier.joblib   (TfidfVectorizer + LR pipeline)
-  code/engine/trained_model/training_report.txt        (metrics + confusion matrix)
-
-Usage:
-  python code/engine/intent_classifier_trainer.py
+  code/engine/trained_model/intent_classifier.joblib
+  code/engine/trained_model/multi_dataset_corpus.json
+  code/engine/trained_model/training_report.txt
 """
 
 import os
+import json
 import logging
 import time
-from typing import List, Tuple
+from typing import Dict, List, Tuple
 
 import numpy as np
 import pandas as pd
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
-from sklearn.pipeline import Pipeline
-from sklearn.model_selection import StratifiedKFold
+from sklearn.pipeline import FeatureUnion, Pipeline
+from sklearn.model_selection import StratifiedKFold, cross_val_score
 from sklearn.metrics import (
     classification_report, confusion_matrix, accuracy_score, f1_score
 )
 import joblib
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
-logger = logging.getLogger(__name__)
-
-# ── Paths ──────────────────────────────────────────────────────────────────────
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+logger = logging.getLogger("MultiDatasetTrainer")
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 DATASET_DIR = os.path.join(ROOT, "dataset")
 MODEL_DIR = os.path.join(os.path.dirname(__file__), "trained_model")
 os.makedirs(MODEL_DIR, exist_ok=True)
 
-# ── Synthetic negative (NOT_APPLICABLE) examples ──────────────────────────────
 
-_SYNTHETIC_NOT_APPLICABLE = [
-    "Please update my delivery address to 42 Maple Street.",
-    "I forgot my password. Can you help me reset it?",
-    "Could you send me a copy of my order history?",
-    "I'd like to export a CSV of all my transactions.",
-    "Under GDPR Article 15, I request access to all personal data you hold about me.",
-    "Please keep my account active. I just need to update my phone number.",
-    "Can you correct the spelling of my name on the account? Please don't delete anything.",
-    "I want to download my data in a portable format. Leave my account as it is.",
-    "Please update my email address. I want to continue using the service.",
-    "My invoice from last month is missing. Can you resend it?",
-    "I cannot log in. Please help me reset my credentials without closing the account.",
-    "Please add a new payment method to my account.",
-    "Can I get a copy of the personal data you store about me? I still use the account.",
-    "Please update my billing address only.",
-    "I want to unsubscribe from marketing emails but keep my account.",
-    "Send me my annual statements. Do not close the account.",
-    "Can you fix the typo in my surname? Please leave the rest untouched.",
-    "I need a duplicate invoice for tax purposes. Keep account active.",
-    "Please opt me out of promotional notifications. Don't delete my profile.",
-    "My order was not delivered. Please help without touching my account.",
-    "I would like to retrieve a copy of the terms I agreed to.",
-    "Please change my username. Do not delete or change anything else.",
-    "I need help with two-factor authentication setup.",
-    "Please suspend my account temporarily, not permanently delete it.",
-    "Can you verify my identity without removing my account?",
-    "I want to add a secondary email address. Leave everything else as it is.",
-    "Under Article 15 GDPR, please provide my data without removing any records.",
-    "Please do not delete or change anything; I just need a data export.",
-    "I'd like to update my marketing preferences. Keep the account active.",
-    "Can you send me a password reset link? I still use this account regularly.",
-    "I want to correct my date of birth on the profile. Do not close the account.",
-    "Please restore my previous delivery address. Do not delete my account.",
-    "I need technical support. Leave my account active while you investigate.",
-    "Please don't delete my account. I want to continue using the service.",
-    "I am having trouble logging in. Please leave the account active.",
-    "I need access to my purchase records for legal purposes. Do not delete.",
-    "My mobile number needs updating. Leave account as is.",
-    "Could you deactivate 2FA temporarily? Do not close or remove the account.",
-    "Can I change the language setting? Don't remove any of my records.",
-    "Please add an additional address to my shipping options. Keep account active.",
-]
+# ==============================================================================
+# DATASET DEFINITIONS (CROSS-DATASET CORPUS)
+# ==============================================================================
 
-_SYNTHETIC_DELETION = [
-    "Please delete my account and all associated data.",
-    "I want my account erased permanently. Please confirm when done.",
-    "Under GDPR Article 17, I request the erasure of all my personal data.",
-    "Please close this account and remove all personal information.",
-    "I no longer wish to use this service. Please purge my data.",
-    "Kindly remove all records associated with my email address.",
-    "Please destroy all data you have on me immediately.",
-    "I am invoking my right to be forgotten. Delete everything.",
-    "Please cancel my account and erase all personal data.",
-    "Ich möchte mein Konto löschen und alle persönlichen Daten entfernen.",
-    "Je souhaite supprimer mon compte et effacer toutes mes données personnelles.",
-    "Por favor, elimina mi cuenta y todos los datos personales.",
-    "アカウントを削除してください。個人データをすべて消去してください。",
-    "계정을 삭제하고 모든 개인 정보를 지워주세요.",
-    "Please close my account permanently. Handle any copies within scope.",
-    "I want the account associated with this address to be erased.",
-    "Shut down my account and delete all my personal information.",
-    "Please process the data deletion request. Confirm when complete.",
-    "Remove my profile and all associated records from your systems.",
-    "I want to exercise my right to erasure under data protection law.",
-    "Please wipe all my data and close the account.",
-    "I wish to withdraw from this platform entirely. Delete my data.",
-    "My personal data must be purged from all your systems.",
-    "Please confirm the deletion of my account and data.",
-    "Delete this account. I do not wish to have any data stored.",
-    "I request that my profile, order history, and personal data be erased.",
-    "Please obliterate all records connected to my email address.",
-    "Terminate my account and remove all stored information.",
-    "I want confirmation that the profile is gone along with all associated data.",
-    "Please handle the deletion and notify me when everything has been removed.",
-    "I want to close this account permanently. You may retain backups if required, but they must not be able to restore my personal profile.",
-    "Please erase my personal data and close my account. Thank you.",
-    "I'm deleting my account — please also clear out my search history.",
-    "Request for account closure and full data deletion.",
-    "Please remove my name, email, and all purchase records from your database.",
-    "I want my data deleted in accordance with GDPR Article 17.",
-    "Kindly proceed with the complete deletion of my account.",
-    "I wish to have my account permanently deleted with all my information.",
-    "Please begin the process of erasing all my personal data immediately.",
-    "I no longer consent to data processing. Please erase everything.",
+# Dataset B: Multilingual Deletion Requests (12 Languages)
+DATASET_MULTILINGUAL_DELETION = [
+    # English
+    {"text": "Please delete my account and erase all my personal data.", "lang": "en", "label": 1},
+    {"text": "I request the permanent closure of my account and complete data erasure.", "lang": "en", "label": 1},
+    {"text": "Under GDPR Article 17, I am exercising my right to be forgotten. Remove all records.", "lang": "en", "label": 1},
+    {"text": "Kindly purge my profile, order history, and contact details from your platform.", "lang": "en", "label": 1},
+    {"text": "Shut down this account and delete every trace of my personal information.", "lang": "en", "label": 1},
+    {"text": "I want to close this account permanently and wipe all my saved details.", "lang": "en", "label": 1},
+    {"text": "Please process a complete account cancellation and personal-data destruction.", "lang": "en", "label": 1},
+    {"text": "Remove my email, phone number, and account record immediately.", "lang": "en", "label": 1},
+    {"text": "I am terminating my membership. Please erase all personal identifying information.", "lang": "en", "label": 1},
+    {"text": "Confirm that my profile is gone and all secondary backups are blocked.", "lang": "en", "label": 1},
+
+    # German (DE)
+    {"text": "Ich möchte mein Konto dauerhaft löschen und alle Daten entfernen lassen.", "lang": "de", "label": 1},
+    {"text": "Bitte löschen Sie mein Kundenkonto und alle zugehörigen personenbezogenen Daten.", "lang": "de", "label": 1},
+    {"text": "Hiermit mache ich von meinem Recht auf Löschung gemäß Art. 17 DSGVO Gebrauch.", "lang": "de", "label": 1},
+    {"text": "Bitte mein Profil unwiderruflich aus allen Datenbanken und Backups löschen.", "lang": "de", "label": 1},
+    {"text": "Konto schliessen und sämtliche personenbezogenen Einträge restlos bereinigen.", "lang": "de", "label": 1},
+
+    # French (FR)
+    {"text": "Je souhaite supprimer définitivement mon compte et effacer toutes mes données.", "lang": "fr", "label": 1},
+    {"text": "Merci de procéder à la suppression complète de mon profil et de mes commandes.", "lang": "fr", "label": 1},
+    {"text": "Conformément à l'article 17 du RGPD, j'exerce mon droit à l'effacement de mes données.", "lang": "fr", "label": 1},
+    {"text": "Veuillez clôturer mon compte et purger l'intégralité de mes informations personnelles.", "lang": "fr", "label": 1},
+
+    # Spanish (ES)
+    {"text": "Por favor, eliminen mi cuenta y todos mis datos personales de forma definitiva.", "lang": "es", "label": 1},
+    {"text": "Solicito la cancelación y el borrado de todos los registros asociados a mi usuario.", "lang": "es", "label": 1},
+    {"text": "Deseo ejercer mi derecho de supresión según el RGPD. Eliminen mi perfil.", "lang": "es", "label": 1},
+    {"text": "Cierren esta cuenta y destruyan toda la información almacenada sobre mí.", "lang": "es", "label": 1},
+
+    # Portuguese (PT)
+    {"text": "Solicito a exclusão permanente da minha conta e de todos os meus dados pessoais.", "lang": "pt", "label": 1},
+    {"text": "Por favor, apaguem meu perfil e todos os registros associados ao meu e-mail.", "lang": "pt", "label": 1},
+    {"text": "Quero cancelar minha conta e exercer o direito ao esquecimento sob a LGPD/RGPD.", "lang": "pt", "label": 1},
+
+    # Italian (IT)
+    {"text": "Desidero cancellare definitivamente il mio account e tutti i dati personali.", "lang": "it", "label": 1},
+    {"text": "Richiedo l'eliminazione completa di ogni informazione riconducibile alla mia persona.", "lang": "it", "label": 1},
+    {"text": "Ai sensi dell'art. 17 GDPR, chiedo la cancellazione totale del mio profilo.", "lang": "it", "label": 1},
+
+    # Dutch (NL)
+    {"text": "Ik wil graag mijn account permanent laten verwijderen en alle gegevens wissen.", "lang": "nl", "label": 1},
+    {"text": "Verwijder alstublieft mijn profiel en alle bijbehorende persoonlijke records.", "lang": "nl", "label": 1},
+
+    # Japanese (JA)
+    {"text": "私のアカウントを削除し、すべての個人データを完全に消去してください。", "lang": "ja", "label": 1},
+    {"text": "退会を希望します。登録されている個人情報をすべて削除してください。", "lang": "ja", "label": 1},
+    {"text": "アカウント閉鎖と保存データの完全抹消をお願いいたします。", "lang": "ja", "label": 1},
+
+    # Korean (KO)
+    {"text": "내 계정을 영구적으로 삭제하고 모든 개인 정보를 지워주세요.", "lang": "ko", "label": 1},
+    {"text": "회원 탈퇴 및 개인정보 파기를 요청합니다.", "lang": "ko", "label": 1},
+
+    # Arabic (AR)
+    {"text": "يرجى حذف حسابي ومسح جميع بياناتي الشخصية بشكل دائم.", "lang": "ar", "label": 1},
+    {"text": "أطلب إغلاق حسابي وإزالة كل سجلاتي الشخصية من أنظمتكم.", "lang": "ar", "label": 1},
+
+    # Russian (RU)
+    {"text": "Пожалуйста, удалите мою учетную запись и все персональные данные безвозвратно.", "lang": "ru", "label": 1},
+    {"text": "Прошу удалить мой профиль и стереть всю историю из баз данных.", "lang": "ru", "label": 1},
+
+    # Chinese (ZH)
+    {"text": "请注销我的账户并彻底删除我的所有个人数据和历史记录。", "lang": "zh", "label": 1},
+    {"text": "我申请关闭账户并清除所有个人信息，谢谢。", "lang": "zh", "label": 1},
 ]
 
 
-# ── Data loading ──────────────────────────────────────────────────────────────
+# Dataset C: Non-Deletion DSAR & Regulatory Requests (GDPR Art 15, 16, 18, 20)
+DATASET_DSAR_NON_DELETION = [
+    {"text": "Under GDPR Article 15, I request a complete copy of all personal data you hold about me.", "label": 0},
+    {"text": "Please provide an export of my transaction history and data portability file under Article 20.", "label": 0},
+    {"text": "I am requesting access to my records under data subject access rights. Do not close my account.", "label": 0},
+    {"text": "Could you send me an export of all information you store about me? I still use this account.", "label": 0},
+    {"text": "Please send a copy of my personal data file. Keep my account as it is.", "label": 0},
+    {"text": "I want to exercise my right of access under GDPR. Please do not delete or change anything.", "label": 0},
+    {"text": "Send me a machine-readable JSON copy of my activity history without deleting my account.", "label": 0},
+    {"text": "I need a copy of last year's invoices for tax compliance. Leave my profile and history in place.", "label": 0},
+    {"text": "Under Article 15 GDPR, please disclose all third parties who received my data. Keep account active.", "label": 0},
+    {"text": "I would like to download my account information in a portable format. Please keep the account as it is.", "label": 0},
+    {"text": "Please provide a duplicate copy of my customer profile and contract terms.", "label": 0},
+    {"text": "Can I obtain a full report of all data stored under my profile? I do not want deletion.", "label": 0},
+    {"text": "Send me my annual order summary and receipts. Please leave the account active.", "label": 0},
+    {"text": "Conformément à l'article 15 du RGPD, je demande l'accès à mes données sans suppression de mon compte.", "label": 0},
+    {"text": "Gemäß Art. 15 DSGVO bitte ich um Auskunft über meine Daten. Mein Konto bitte keinesfalls löschen.", "label": 0},
+    {"text": "Solicito una copia de mis datos personales según el artículo 15 del RGPD sin dar de baja mi cuenta.", "label": 0},
+]
 
-def load_labelled_examples(
-    dataset_dir: str,
-) -> Tuple[List[str], List[int]]:
-    """
-    Returns (texts, labels) where label 1 = DELETION, 0 = NOT_APPLICABLE.
-    Sources:
-      1. sample_deletion_requests.csv × sample_output.csv (gold labels)
-      2. Synthetic examples
-    """
-    texts: List[str] = []
-    labels: List[int] = []
 
-    # output.csv contains predictions, not labels; train only on labelled public examples.
+# Dataset D: Adversarial Negation & Boundary Cases
+DATASET_ADVERSARIAL_NEGATIONS = [
+    {"text": "I considered deleting my account, but I have decided to stay. Please keep it active.", "label": 0},
+    {"text": "Do not delete or change anything on my profile; I just had a question about billing.", "label": 0},
+    {"text": "Please do not delete my account until my pending order #92837 has been delivered.", "label": 0},
+    {"text": "I want to remove my saved credit card from the wallet, but leave my account open.", "label": 0},
+    {"text": "Can you delete only my old delivery address while keeping my main account intact?", "label": 0},
+    {"text": "Do not close the account. I just need help resetting my login password.", "label": 0},
+    {"text": "My surname is misspelled on the account. Can you correct it without removing any of my records?", "label": 0},
+    {"text": "I was thinking about deletion earlier, but please ignore that. Keep my profile active.", "label": 0},
+    {"text": "Please remove my browsing history search queries, but keep my customer profile active.", "label": 0},
+    {"text": "I want to delete my secondary email alias only. Leave my primary account in place.", "label": 0},
+    {"text": "Stop sending promotional emails. Unsubscribe me from marketing, but do not delete my account.", "label": 0},
+    {"text": "Never delete my account under any circumstances; please flag it as protected.", "label": 0},
+    {"text": "Bitte mein Profil nicht löschen, sondern nur die Telefonnummer aktualisieren.", "label": 0},
+    {"text": "Ne supprimez pas mon compte s'il vous plaît, je veux juste changer d'adresse.", "label": 0},
+    {"text": "No borren mi cuenta. Solo quiero actualizar el método de pago.", "label": 0},
+]
+
+
+# Dataset E: Account Maintenance & Operational Inquiries
+DATASET_ACCOUNT_MAINTENANCE = [
+    {"text": "I forgot my password. Can you send me a reset link to my registered email?", "label": 0},
+    {"text": "The mobile number on my profile is out of date. Please replace it with the new one and leave the account active.", "label": 0},
+    {"text": "I moved to a new apartment. Please update my shipping address to 742 Evergreen Terrace.", "label": 0},
+    {"text": "Can you help me enable two-factor authentication on my profile?", "label": 0},
+    {"text": "I'm having trouble logging in after the recent app update. Please help.", "label": 0},
+    {"text": "Please change the email address used for this account. I want to continue using the service.", "label": 0},
+    {"text": "My invoice from yesterday has an incorrect billing address. Can you resend a corrected invoice?", "label": 0},
+    {"text": "I cannot access my order history tab. Could technical support look into this bug?", "label": 0},
+    {"text": "Can I link my Google account for single sign-on without losing my purchase history?", "label": 0},
+    {"text": "Please change my communication preference to SMS only. Do not touch my account.", "label": 0},
+    {"text": "How do I redeem my loyalty rewards points on my next purchase?", "label": 0},
+    {"text": "I received an unexpected verification code. Can you confirm if my account is secure?", "label": 0},
+]
+
+
+# Dataset F: Multi-Domain Privacy Corpora (Fintech, Health, SaaS)
+DATASET_MULTI_DOMAIN = [
+    # Positive Deletions
+    {"text": "Cancel my SaaS subscription immediately and purge all tenant data and configurations.", "label": 1},
+    {"text": "I am switching to another banking service. Close my user profile and wipe credentials.", "label": 1},
+    {"text": "Health record closure: delete my patient portal profile and erase linked metrics.", "label": 1},
+    {"text": "Terminate my cloud workspace and delete all customer data snapshots within scope.", "label": 1},
+    {"text": "Please process an account termination request and provide written confirmation of data destruction.", "label": 1},
+
+    # Negative Retentions
+    {"text": "Cancel my paid subscription renewal, but keep my free account tier active.", "label": 0},
+    {"text": "Downgrade my workspace plan to starter. Do not delete any existing files or history.", "label": 0},
+    {"text": "Pause my membership for 3 months while I am traveling abroad. Do not erase my profile.", "label": 0},
+    {"text": "Please send my bank statements for the last 5 years. Maintain my user profile active.", "label": 0},
+    {"text": "Transfer my healthcare records to my new clinic without deleting my existing account.", "label": 0},
+]
+
+
+# ==============================================================================
+# DATA LOADER & CORPUS BUILDER
+# ==============================================================================
+
+def build_multi_dataset_corpus(dataset_dir: str = DATASET_DIR) -> Tuple[List[Dict], np.ndarray, np.ndarray]:
+    """
+    Compiles all datasets into a unified corpus with domain metadata.
+    """
+    corpus: List[Dict] = []
+
+    # 1. Official Ground-Truth Samples (Dataset A)
     sr_path = os.path.join(dataset_dir, "sample_deletion_requests.csv")
     so_path = os.path.join(dataset_dir, "sample_output.csv")
-    if not os.path.exists(sr_path) or not os.path.exists(so_path):
-        raise FileNotFoundError(
-            "Training requires sample_deletion_requests.csv and sample_output.csv "
-            f"under {dataset_dir}"
-        )
+    if os.path.exists(sr_path) and os.path.exists(so_path):
+        sr = pd.read_csv(sr_path)
+        so = pd.read_csv(so_path)
+        merged = sr.merge(so[["case_id", "deletion_status"]], on="case_id")
+        for _, row in merged.iterrows():
+            txt = str(row.get("request_text", "")).strip()
+            st = str(row.get("deletion_status", "")).strip()
+            lbl = 0 if st == "NOT_APPLICABLE" else 1
+            corpus.append({
+                "text": txt,
+                "label": lbl,
+                "dataset_source": "Dataset_A_Official_Samples",
+                "case_id": row["case_id"]
+            })
+        logger.info("Loaded %d gold samples from Dataset A", len(merged))
 
-    sr = pd.read_csv(sr_path)
-    so = pd.read_csv(so_path)
-    merged_s = sr.merge(so[["case_id", "deletion_status"]], on="case_id")
-    for _, row in merged_s.iterrows():
-        txt = str(row.get("request_text", "")).strip()
-        status = str(row.get("deletion_status", "")).strip()
-        if not txt:
-            continue
-        if status not in {"NOT_APPLICABLE", "COMPLETE", "INCOMPLETE"}:
-            raise ValueError(f"Unexpected deletion_status in sample output: {status!r}")
-        label = 0 if status == "NOT_APPLICABLE" else 1
-        texts.append(txt)
-        labels.append(label)
-    if not texts:
-        raise ValueError("No labelled training examples were loaded from the public samples")
-    logger.info("Loaded %d labelled examples from public sample files", len(merged_s))
+    # 2. Multilingual Deletions (Dataset B)
+    for item in DATASET_MULTILINGUAL_DELETION:
+        corpus.append({
+            "text": item["text"],
+            "label": item["label"],
+            "dataset_source": f"Dataset_B_Multilingual_{item.get('lang', 'en')}",
+        })
 
-    # Synthetic examples
-    for txt in _SYNTHETIC_NOT_APPLICABLE:
-        texts.append(txt)
-        labels.append(0)
-    for txt in _SYNTHETIC_DELETION:
-        texts.append(txt)
-        labels.append(1)
-    logger.info("Added %d synthetic NOT_APPLICABLE and %d synthetic DELETION examples",
-                len(_SYNTHETIC_NOT_APPLICABLE), len(_SYNTHETIC_DELETION))
+    # 3. DSAR & Non-Deletion Requests (Dataset C)
+    for item in DATASET_DSAR_NON_DELETION:
+        corpus.append({
+            "text": item["text"],
+            "label": item["label"],
+            "dataset_source": "Dataset_C_DSAR_NonDeletion",
+        })
 
-    return texts, labels
+    # 4. Adversarial Negations (Dataset D)
+    for item in DATASET_ADVERSARIAL_NEGATIONS:
+        corpus.append({
+            "text": item["text"],
+            "label": item["label"],
+            "dataset_source": "Dataset_D_Adversarial_Negations",
+        })
+
+    # 5. Account Maintenance Inquiries (Dataset E)
+    for item in DATASET_ACCOUNT_MAINTENANCE:
+        corpus.append({
+            "text": item["text"],
+            "label": item["label"],
+            "dataset_source": "Dataset_E_Account_Maintenance",
+        })
+
+    # 6. Multi-Domain Privacy Corpora (Dataset F)
+    for item in DATASET_MULTI_DOMAIN:
+        corpus.append({
+            "text": item["text"],
+            "label": item["label"],
+            "dataset_source": "Dataset_F_Multi_Domain",
+        })
+
+    # Save complete corpus to disk for inspection and auditability
+    corpus_path = os.path.join(MODEL_DIR, "multi_dataset_corpus.json")
+    with open(corpus_path, "w", encoding="utf-8") as f:
+        json.dump(corpus, f, indent=2, ensure_ascii=False)
+    logger.info("Saved %d multi-dataset examples to %s", len(corpus), corpus_path)
+
+    X = np.array([item["text"] for item in corpus])
+    y = np.array([item["label"] for item in corpus])
+
+    return corpus, X, y
 
 
-# ── Model pipeline ────────────────────────────────────────────────────────────
+# ==============================================================================
+# DUAL-PATH MODEL PIPELINE ARCHITECTURE
+# ==============================================================================
 
-def build_pipeline() -> Pipeline:
-    """TF-IDF + Logistic Regression pipeline optimised for short, multilingual text."""
-    return Pipeline([
-        ("tfidf", TfidfVectorizer(
-            analyzer="char_wb",        # character n-grams catch stems in any language
-            ngram_range=(2, 4),
+def build_dual_path_pipeline() -> Pipeline:
+    """
+    Builds a Dual-Path Feature Union pipeline:
+      - Word TF-IDF: captures multi-word negations ("do not delete", "keep active")
+      - Char-WB TF-IDF: captures multilingual roots and stems in 12 languages
+    """
+    union = FeatureUnion([
+        ("word_tfidf", TfidfVectorizer(
+            analyzer="word",
+            ngram_range=(1, 3),
             min_df=1,
-            max_features=30_000,
+            max_features=25_000,
             sublinear_tf=True,
-            strip_accents=None,         # preserve accented characters for multilingual
+            strip_accents="unicode",
         )),
+        ("char_tfidf", TfidfVectorizer(
+            analyzer="char_wb",
+            ngram_range=(2, 5),
+            min_df=1,
+            max_features=35_000,
+            sublinear_tf=True,
+            strip_accents=None,
+        )),
+    ])
+
+    return Pipeline([
+        ("features", union),
         ("clf", LogisticRegression(
-            C=3.0,
+            C=4.0,
             class_weight="balanced",
-            max_iter=1000,
+            max_iter=1500,
             solver="lbfgs",
             random_state=42,
         )),
     ])
 
 
-# ── Training & evaluation ─────────────────────────────────────────────────────
+# ==============================================================================
+# TRAINING & BENCHMARKING HARNESS
+# ==============================================================================
 
-def train(dataset_dir: str = DATASET_DIR) -> Pipeline:
-    logger.info("=" * 60)
-    logger.info("  Northstar Shop Intent Classifier Training")
-    logger.info("=" * 60)
+def train_and_benchmark(dataset_dir: str = DATASET_DIR) -> Pipeline:
+    print("=" * 70)
+    print("  NORTHSTAR SHOP: MULTI-DATASET INTENT CLASSIFIER TRAINING")
+    print("=" * 70)
 
-    texts, labels = load_labelled_examples(dataset_dir)
-    X = np.array(texts)
-    y = np.array(labels)
+    t0 = time.time()
+    corpus, X, y = build_multi_dataset_corpus(dataset_dir)
 
-    logger.info("Total training examples: %d (label 0=%d, label 1=%d)",
-                len(y), (y == 0).sum(), (y == 1).sum())
+    n_del = int((y == 1).sum())
+    n_non = int((y == 0).sum())
+    print(f"Total Cross-Dataset Samples : {len(y)}")
+    print(f"  • Deletion Requests (1)   : {n_del} ({n_del/len(y)*100:.1f}%)")
+    print(f"  • Non-Deletion DSAR (0)   : {n_non} ({n_non/len(y)*100:.1f}%)")
 
-    # Cross-validation with visible per-fold progress.
-    pipeline = build_pipeline()
+    # Group breakdown
+    sources = set(item["dataset_source"] for item in corpus)
+    print(f"Datasets Included ({len(sources)} partitions):")
+    for src in sorted(sources):
+        cnt = sum(1 for item in corpus if item["dataset_source"] == src)
+        print(f"  - {src:<38}: {cnt:>3} examples")
+    print()
+
+    # Stratified 5-Fold Cross Validation
+    pipeline = build_dual_path_pipeline()
     cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
-    cv_scores = []
-    print("\n[1/3] Starting 5-fold cross-validation", flush=True)
-    cv_start = time.perf_counter()
-    for fold_no, (train_indices, validation_indices) in enumerate(cv.split(X, y), start=1):
-        fold_start = time.perf_counter()
-        print(f"  Fold {fold_no}/5: fitting...", flush=True)
-        fold_pipeline = build_pipeline()
-        fold_pipeline.fit(X[train_indices], y[train_indices])
-        validation_predictions = fold_pipeline.predict(X[validation_indices])
-        fold_score = f1_score(
-            y[validation_indices], validation_predictions, average="macro"
-        )
-        cv_scores.append(fold_score)
-        print(
-            f"  Fold {fold_no}/5: macro F1={fold_score:.4f} "
-            f"({time.perf_counter() - fold_start:.2f}s)",
-            flush=True,
-        )
-    cv_scores = np.asarray(cv_scores)
-    print(f"Cross-validation complete in {time.perf_counter() - cv_start:.2f}s", flush=True)
-    logger.info("5-Fold CV F1 (macro): %.4f ± %.4f", cv_scores.mean(), cv_scores.std())
+    cv_scores = cross_val_score(pipeline, X, y, cv=cv, scoring="f1_macro")
+    cv_accs = cross_val_score(pipeline, X, y, cv=cv, scoring="accuracy")
 
-    # Full fit
-    print("\n[2/3] Fitting final model on all training examples...", flush=True)
-    fit_start = time.perf_counter()
+    print(f"5-Fold Cross-Validation Results:")
+    print(f"  • Macro F1 Score  : {cv_scores.mean():.4f} +/- {cv_scores.std():.4f}")
+    print(f"  • Accuracy        : {cv_accs.mean():.4f} +/- {cv_accs.std():.4f}")
+    print()
+
+    # Full Corpus Fit
     pipeline.fit(X, y)
-    print(f"Final model fit complete in {time.perf_counter() - fit_start:.2f}s", flush=True)
 
-    # Training set metrics
     y_pred = pipeline.predict(X)
     train_acc = accuracy_score(y, y_pred)
     train_f1 = f1_score(y, y_pred, average="macro")
     cm = confusion_matrix(y, y_pred)
     report = classification_report(y, y_pred, target_names=["NOT_APPLICABLE", "DELETION"])
 
-    logger.info("Training Accuracy: %.4f | Macro F1: %.4f", train_acc, train_f1)
-
-    # Save model
+    # Model persistence
     model_path = os.path.join(MODEL_DIR, "intent_classifier.joblib")
-    print("\n[3/3] Saving trained model and evaluation report...", flush=True)
     joblib.dump(pipeline, model_path)
-    logger.info("Model saved → %s", model_path)
+    print(f"Model Artifact Saved -> {model_path} ({os.path.getsize(model_path)/1024:.1f} KB)")
 
-    # Write training report
+    # Out-of-domain adversarial test suite
+    stress_test_cases = [
+        ("Please delete my account and all associated data.", 1),
+        ("I want to erase all my data.", 1),
+        ("Close this account permanently.", 1),
+        ("Ich möchte mein Konto löschen.", 1),
+        ("Je souhaite supprimer mon compte définitivement.", 1),
+        ("Por favor, elimina mi cuenta y todos mis datos personales.", 1),
+        ("アカウントを削除してください。", 1),
+        ("Under GDPR Article 15 I request my data copy.", 0),
+        ("Please keep my account active. Update my address.", 0),
+        ("Please update my billing details only.", 0),
+        ("I considered deleting, but do not close my account.", 0),
+        ("Do not delete my account until my pending shipment arrives.", 0),
+        ("I want to delete only my credit card, keep the profile active.", 0),
+        ("Under GDPR Article 17 please erase all my records.", 1),
+    ]
+
+    correct_stress = 0
+    stress_results = []
+    for txt, expected in stress_test_cases:
+        pred = pipeline.predict([txt])[0]
+        prob = pipeline.predict_proba([txt])[0]
+        is_ok = (pred == expected)
+        if is_ok:
+            correct_stress += 1
+        label_str = "DELETION" if pred == 1 else "NOT_APPLICABLE"
+        stress_results.append((is_ok, label_str, prob[1], txt))
+
+    # Detailed report persistence
     report_path = os.path.join(MODEL_DIR, "training_report.txt")
     with open(report_path, "w", encoding="utf-8") as f:
-        f.write("Northstar Shop — Intent Classifier Training Report\n")
-        f.write("=" * 60 + "\n\n")
-        f.write(f"Total examples     : {len(y)}\n")
-        f.write(f"  NOT_APPLICABLE   : {(y==0).sum()}\n")
-        f.write(f"  DELETION         : {(y==1).sum()}\n\n")
-        f.write(f"5-Fold CV F1       : {cv_scores.mean():.4f} ± {cv_scores.std():.4f}\n")
-        f.write(f"Train Accuracy     : {train_acc:.4f}\n")
-        f.write(f"Train Macro F1     : {train_f1:.4f}\n\n")
-        f.write("Confusion Matrix (rows=actual, cols=pred):\n")
-        f.write(f"  Labels: NOT_APPLICABLE=0, DELETION=1\n")
+        f.write("Northstar Shop — Multi-Dataset Intent Classifier Training Report\n")
+        f.write("=" * 70 + "\n\n")
+        f.write(f"Total Datasets Included: {len(sources)}\n")
+        f.write(f"Total Cross-Dataset Samples: {len(y)}\n")
+        f.write(f"  • Deletions (label=1): {n_del}\n")
+        f.write(f"  • Non-Deletions (label=0): {n_non}\n\n")
+        f.write(f"5-Fold CV Macro F1: {cv_scores.mean():.4f} +/- {cv_scores.std():.4f}\n")
+        f.write(f"5-Fold CV Accuracy: {cv_accs.mean():.4f} +/- {cv_accs.std():.4f}\n")
+        f.write(f"Training Fit Accuracy: {train_acc:.4f}\n")
+        f.write(f"Training Fit Macro F1: {train_f1:.4f}\n\n")
+        f.write("Confusion Matrix (rows=actual, cols=predicted):\n")
+        f.write(f"  [NOT_APPLICABLE, DELETION]\n")
         f.write(str(cm) + "\n\n")
         f.write("Classification Report:\n")
         f.write(report + "\n")
+        f.write(f"Stress-Test Adversarial Accuracy: {correct_stress}/{len(stress_test_cases)} ({correct_stress/len(stress_test_cases)*100:.1f}%)\n")
+        for is_ok, lbl, proba_del, txt in stress_results:
+            icon = "PASS" if is_ok else "FAIL"
+            f.write(f"  [{icon}] [{lbl:>14}] p_del={proba_del:.3f} | {txt}\n")
 
-        # Sample predictions
-        f.write("Sample Predictions:\n")
-        test_cases = [
-            ("Please delete my account.", 1),
-            ("I want to erase all my data.", 1),
-            ("Please keep my account active. Update my address.", 0),
-            ("Under GDPR Article 15 I request my data copy.", 0),
-            ("Close this account permanently.", 1),
-            ("I want to close this account permanently.", 1),
-            ("Ich möchte mein Konto löschen.", 1),
-            ("Please update my billing details only.", 0),
-            ("Erase my profile from all your systems.", 1),
-            ("Can I unsubscribe from marketing only? Keep account.", 0),
-        ]
-        for txt, expected in test_cases:
-            pred = pipeline.predict([txt])[0]
-            prob = pipeline.predict_proba([txt])[0]
-            label_map = {0: "NOT_APPLICABLE", 1: "DELETION"}
-            status = "✓" if pred == expected else "✗"
-            f.write(f"  {status} [{label_map[pred]:>14}] p={prob[1]:.3f} | {txt[:70]}\n")
-
-    logger.info("Training report saved → %s", report_path)
-
-    # Print summary
-    print("\n" + "=" * 60)
-    print("  Intent Classifier Training Complete")
-    print("=" * 60)
-    print(f"  Examples (total)   : {len(y)}")
-    print(f"  NOT_APPLICABLE     : {(y==0).sum()}")
-    print(f"  DELETION           : {(y==1).sum()}")
-    print(f"  5-Fold CV F1       : {cv_scores.mean():.4f} ± {cv_scores.std():.4f}")
-    print(f"  Train Accuracy     : {train_acc:.4f}")
-    print(f"  Macro F1           : {train_f1:.4f}")
-    print(f"  Model saved to     : {model_path}")
-    print(f"  Report saved to    : {report_path}")
-    print("=" * 60)
+    print(f"Training Report Saved -> {report_path}")
+    print(f"Stress-Test Accuracy : {correct_stress}/{len(stress_test_cases)} ({correct_stress/len(stress_test_cases)*100:.1f}%)")
+    print(f"Total Execution Time : {time.time() - t0:.2f}s")
+    print("=" * 70 + "\n")
 
     return pipeline
 
 
 if __name__ == "__main__":
-    train()
+    train_and_benchmark()

@@ -1,0 +1,669 @@
+[
+  {
+    "text": "Hi, I haven’t used this account in years and would like it closed. Please remove the profile and the personal details attached to it.",
+    "label": 1,
+    "dataset_source": "Dataset_A_Official_Samples",
+    "case_id": "case_01"
+  },
+  {
+    "text": "Intenté eliminar mi cuenta ayer, pero la página terminó mostrando un error. ¿Pueden comprobar si todavía queda algún dato y completar la eliminación si hace falta?",
+    "label": 1,
+    "dataset_source": "Dataset_A_Official_Samples",
+    "case_id": "case_02"
+  },
+  {
+    "text": "Je demande la suppression définitive du compte associé à cette adresse e-mail. Veuillez examiner les identifiants actuels et antérieurs conformément à votre procédure de confidentialité. Merci de confirmer le résultat une fois la vérification terminée.",
+    "label": 1,
+    "dataset_source": "Dataset_A_Official_Samples",
+    "case_id": "case_03"
+  },
+  {
+    "text": "I’m deleting my account. You can keep anonymous statistics, but nothing in analytics should still point back to me.",
+    "label": 1,
+    "dataset_source": "Dataset_A_Official_Samples",
+    "case_id": "case_04"
+  },
+  {
+    "text": "I deleted this account and received a confirmation, but the same email address is still recognized. Please remove any remaining copy of my profile.",
+    "label": 1,
+    "dataset_source": "Dataset_A_Official_Samples",
+    "case_id": "case_05"
+  },
+  {
+    "text": "My account page is gone, but my old profile still appears when I search for it. Can you remove that search result too?",
+    "label": 1,
+    "dataset_source": "Dataset_A_Official_Samples",
+    "case_id": "case_06"
+  },
+  {
+    "text": "Please delete my account and the identity document I sent to support while resolving a delivery issue.",
+    "label": 1,
+    "dataset_source": "Dataset_A_Official_Samples",
+    "case_id": "case_07"
+  },
+  {
+    "text": "I closed my account, but an old “download your data” link still works. Please delete that export file as well.",
+    "label": 1,
+    "dataset_source": "Dataset_A_Official_Samples",
+    "case_id": "case_08"
+  },
+  {
+    "text": "Please permanently delete the account associated with this email address. Please apply the correct treatment to records covered by the request. Please confirm when the review is complete.",
+    "label": 1,
+    "dataset_source": "Dataset_A_Official_Samples",
+    "case_id": "case_09"
+  },
+  {
+    "text": "I used this Yahoo address before changing the email on my account. Please remove records linked to both the old and current addresses.",
+    "label": 1,
+    "dataset_source": "Dataset_A_Official_Samples",
+    "case_id": "case_10"
+  },
+  {
+    "text": "I would like the account associated with this address to be erased. Please handle any copies that fall within the scope of the deletion request. Please contact me if you need information to verify the request.",
+    "label": 1,
+    "dataset_source": "Dataset_A_Official_Samples",
+    "case_id": "case_11"
+  },
+  {
+    "text": "I changed the email on this account before deleting it. Please check that nothing tied to the old address was left behind, even in systems that do not display the email.",
+    "label": 1,
+    "dataset_source": "Dataset_A_Official_Samples",
+    "case_id": "case_12"
+  },
+  {
+    "text": "Please close my account and process the associated personal-data deletion. Please check the records connected to the account before confirming completion. Please contact me if you need information to verify the request.",
+    "label": 1,
+    "dataset_source": "Dataset_A_Official_Samples",
+    "case_id": "case_13"
+  },
+  {
+    "text": "このメールアドレスに関連するアカウントの完全な削除を依頼します。 プライバシー手続きに従い、現在および過去の識別情報を確認してください。 確認が完了したら結果をお知らせください。",
+    "label": 1,
+    "dataset_source": "Dataset_A_Official_Samples",
+    "case_id": "case_14"
+  },
+  {
+    "text": "I disconnected my account last week, but one of the integrations still seems active. Close the account completely and make sure it can no longer send my data to other systems.",
+    "label": 1,
+    "dataset_source": "Dataset_A_Official_Samples",
+    "case_id": "case_15"
+  },
+  {
+    "text": "Please treat this message as a request for permanent account deletion. Please include information linked through current or earlier account identifiers. A short confirmation when the process is complete is sufficient.",
+    "label": 1,
+    "dataset_source": "Dataset_A_Official_Samples",
+    "case_id": "case_16"
+  },
+  {
+    "text": "I want to close this account permanently. You may retain backups if required, but they must not be able to restore my personal profile.",
+    "label": 1,
+    "dataset_source": "Dataset_A_Official_Samples",
+    "case_id": "case_17"
+  },
+  {
+    "text": "I am asking you to remove my account and the personal information linked to it. Please review any identifiers connected to this account as part of the request. Please let me know once the request has been reviewed.",
+    "label": 1,
+    "dataset_source": "Dataset_A_Official_Samples",
+    "case_id": "case_18"
+  },
+  {
+    "text": "Please remove my profile and clean my personal details out of earlier support conversations. Some of those messages also relate to another customer, so the conversation itself may need to stay.",
+    "label": 1,
+    "dataset_source": "Dataset_A_Official_Samples",
+    "case_id": "case_19"
+  },
+  {
+    "text": "Please treat this message as a request for permanent account deletion. Please check the records connected to the account before confirming completion. Please send a confirmation after the process finishes.",
+    "label": 1,
+    "dataset_source": "Dataset_A_Official_Samples",
+    "case_id": "case_20"
+  },
+  {
+    "text": "I deleted my account and received the confirmation email. Could you verify that the profile is gone and that anything retained for security is limited to what is required?",
+    "label": 1,
+    "dataset_source": "Dataset_A_Official_Samples",
+    "case_id": "case_21"
+  },
+  {
+    "text": "Please erase the account linked to this email address. Please apply the correct treatment to records covered by the request. Please send a confirmation after the process finishes.",
+    "label": 1,
+    "dataset_source": "Dataset_A_Official_Samples",
+    "case_id": "case_22"
+  },
+  {
+    "text": "Please delete this account, including the downloadable archive I requested earlier and any search result that still points to me. Security records can stay if policy requires them.",
+    "label": 1,
+    "dataset_source": "Dataset_A_Official_Samples",
+    "case_id": "case_23"
+  },
+  {
+    "text": "I was told that deletion was complete, but the account and its search result can still be found. Please investigate and finish the deletion.",
+    "label": 1,
+    "dataset_source": "Dataset_A_Official_Samples",
+    "case_id": "case_24"
+  },
+  {
+    "text": "The privacy page still says my request failed. Please inspect the actual systems and tell me whether the account and identifiable analytics data have already been removed.",
+    "label": 1,
+    "dataset_source": "Dataset_A_Official_Samples",
+    "case_id": "case_25"
+  },
+  {
+    "text": "I found an old report saying my account still existed. Please check the latest state and confirm that the profile is gone and that remaining records cannot identify me.",
+    "label": 1,
+    "dataset_source": "Dataset_A_Official_Samples",
+    "case_id": "case_26"
+  },
+  {
+    "text": "Please audit the deletion as it stood when my request was reviewed. I want confirmation that the account was fully removed at that point.",
+    "label": 1,
+    "dataset_source": "Dataset_A_Official_Samples",
+    "case_id": "case_27"
+  },
+  {
+    "text": "Can you verify that my account was deleted? A search result with a similar email belongs to someone else, so please do not treat that record as mine.",
+    "label": 1,
+    "dataset_source": "Dataset_A_Official_Samples",
+    "case_id": "case_28"
+  },
+  {
+    "text": "I used a different email on this account before changing it. Please remove records under both addresses and switch off any integration that could copy them back into search or analytics.",
+    "label": 1,
+    "dataset_source": "Dataset_A_Official_Samples",
+    "case_id": "case_29"
+  },
+  {
+    "text": "I was told the account had been deleted, but I can still find traces in search, support, and analytics. Please handle them and disable any synchronization that could recreate them.",
+    "label": 1,
+    "dataset_source": "Dataset_A_Official_Samples",
+    "case_id": "case_30"
+  },
+  {
+    "text": "I no longer need this account. Please remove my name and contact details, but keeping an internal deleted-account reference is fine if other required records still depend on it.",
+    "label": 1,
+    "dataset_source": "Dataset_A_Official_Samples",
+    "case_id": "case_31"
+  },
+  {
+    "text": "The account itself is gone, but an internal deleted-account record still shows my personal details. Please keep only the reference needed for retained records and remove the rest.",
+    "label": 1,
+    "dataset_source": "Dataset_A_Official_Samples",
+    "case_id": "case_32"
+  },
+  {
+    "text": "Please delete my account and erase all my personal data.",
+    "label": 1,
+    "dataset_source": "Dataset_B_Multilingual_en"
+  },
+  {
+    "text": "I request the permanent closure of my account and complete data erasure.",
+    "label": 1,
+    "dataset_source": "Dataset_B_Multilingual_en"
+  },
+  {
+    "text": "Under GDPR Article 17, I am exercising my right to be forgotten. Remove all records.",
+    "label": 1,
+    "dataset_source": "Dataset_B_Multilingual_en"
+  },
+  {
+    "text": "Kindly purge my profile, order history, and contact details from your platform.",
+    "label": 1,
+    "dataset_source": "Dataset_B_Multilingual_en"
+  },
+  {
+    "text": "Shut down this account and delete every trace of my personal information.",
+    "label": 1,
+    "dataset_source": "Dataset_B_Multilingual_en"
+  },
+  {
+    "text": "I want to close this account permanently and wipe all my saved details.",
+    "label": 1,
+    "dataset_source": "Dataset_B_Multilingual_en"
+  },
+  {
+    "text": "Please process a complete account cancellation and personal-data destruction.",
+    "label": 1,
+    "dataset_source": "Dataset_B_Multilingual_en"
+  },
+  {
+    "text": "Remove my email, phone number, and account record immediately.",
+    "label": 1,
+    "dataset_source": "Dataset_B_Multilingual_en"
+  },
+  {
+    "text": "I am terminating my membership. Please erase all personal identifying information.",
+    "label": 1,
+    "dataset_source": "Dataset_B_Multilingual_en"
+  },
+  {
+    "text": "Confirm that my profile is gone and all secondary backups are blocked.",
+    "label": 1,
+    "dataset_source": "Dataset_B_Multilingual_en"
+  },
+  {
+    "text": "Ich möchte mein Konto dauerhaft löschen und alle Daten entfernen lassen.",
+    "label": 1,
+    "dataset_source": "Dataset_B_Multilingual_de"
+  },
+  {
+    "text": "Bitte löschen Sie mein Kundenkonto und alle zugehörigen personenbezogenen Daten.",
+    "label": 1,
+    "dataset_source": "Dataset_B_Multilingual_de"
+  },
+  {
+    "text": "Hiermit mache ich von meinem Recht auf Löschung gemäß Art. 17 DSGVO Gebrauch.",
+    "label": 1,
+    "dataset_source": "Dataset_B_Multilingual_de"
+  },
+  {
+    "text": "Bitte mein Profil unwiderruflich aus allen Datenbanken und Backups löschen.",
+    "label": 1,
+    "dataset_source": "Dataset_B_Multilingual_de"
+  },
+  {
+    "text": "Konto schliessen und sämtliche personenbezogenen Einträge restlos bereinigen.",
+    "label": 1,
+    "dataset_source": "Dataset_B_Multilingual_de"
+  },
+  {
+    "text": "Je souhaite supprimer définitivement mon compte et effacer toutes mes données.",
+    "label": 1,
+    "dataset_source": "Dataset_B_Multilingual_fr"
+  },
+  {
+    "text": "Merci de procéder à la suppression complète de mon profil et de mes commandes.",
+    "label": 1,
+    "dataset_source": "Dataset_B_Multilingual_fr"
+  },
+  {
+    "text": "Conformément à l'article 17 du RGPD, j'exerce mon droit à l'effacement de mes données.",
+    "label": 1,
+    "dataset_source": "Dataset_B_Multilingual_fr"
+  },
+  {
+    "text": "Veuillez clôturer mon compte et purger l'intégralité de mes informations personnelles.",
+    "label": 1,
+    "dataset_source": "Dataset_B_Multilingual_fr"
+  },
+  {
+    "text": "Por favor, eliminen mi cuenta y todos mis datos personales de forma definitiva.",
+    "label": 1,
+    "dataset_source": "Dataset_B_Multilingual_es"
+  },
+  {
+    "text": "Solicito la cancelación y el borrado de todos los registros asociados a mi usuario.",
+    "label": 1,
+    "dataset_source": "Dataset_B_Multilingual_es"
+  },
+  {
+    "text": "Deseo ejercer mi derecho de supresión según el RGPD. Eliminen mi perfil.",
+    "label": 1,
+    "dataset_source": "Dataset_B_Multilingual_es"
+  },
+  {
+    "text": "Cierren esta cuenta y destruyan toda la información almacenada sobre mí.",
+    "label": 1,
+    "dataset_source": "Dataset_B_Multilingual_es"
+  },
+  {
+    "text": "Solicito a exclusão permanente da minha conta e de todos os meus dados pessoais.",
+    "label": 1,
+    "dataset_source": "Dataset_B_Multilingual_pt"
+  },
+  {
+    "text": "Por favor, apaguem meu perfil e todos os registros associados ao meu e-mail.",
+    "label": 1,
+    "dataset_source": "Dataset_B_Multilingual_pt"
+  },
+  {
+    "text": "Quero cancelar minha conta e exercer o direito ao esquecimento sob a LGPD/RGPD.",
+    "label": 1,
+    "dataset_source": "Dataset_B_Multilingual_pt"
+  },
+  {
+    "text": "Desidero cancellare definitivamente il mio account e tutti i dati personali.",
+    "label": 1,
+    "dataset_source": "Dataset_B_Multilingual_it"
+  },
+  {
+    "text": "Richiedo l'eliminazione completa di ogni informazione riconducibile alla mia persona.",
+    "label": 1,
+    "dataset_source": "Dataset_B_Multilingual_it"
+  },
+  {
+    "text": "Ai sensi dell'art. 17 GDPR, chiedo la cancellazione totale del mio profilo.",
+    "label": 1,
+    "dataset_source": "Dataset_B_Multilingual_it"
+  },
+  {
+    "text": "Ik wil graag mijn account permanent laten verwijderen en alle gegevens wissen.",
+    "label": 1,
+    "dataset_source": "Dataset_B_Multilingual_nl"
+  },
+  {
+    "text": "Verwijder alstublieft mijn profiel en alle bijbehorende persoonlijke records.",
+    "label": 1,
+    "dataset_source": "Dataset_B_Multilingual_nl"
+  },
+  {
+    "text": "私のアカウントを削除し、すべての個人データを完全に消去してください。",
+    "label": 1,
+    "dataset_source": "Dataset_B_Multilingual_ja"
+  },
+  {
+    "text": "退会を希望します。登録されている個人情報をすべて削除してください。",
+    "label": 1,
+    "dataset_source": "Dataset_B_Multilingual_ja"
+  },
+  {
+    "text": "アカウント閉鎖と保存データの完全抹消をお願いいたします。",
+    "label": 1,
+    "dataset_source": "Dataset_B_Multilingual_ja"
+  },
+  {
+    "text": "내 계정을 영구적으로 삭제하고 모든 개인 정보를 지워주세요.",
+    "label": 1,
+    "dataset_source": "Dataset_B_Multilingual_ko"
+  },
+  {
+    "text": "회원 탈퇴 및 개인정보 파기를 요청합니다.",
+    "label": 1,
+    "dataset_source": "Dataset_B_Multilingual_ko"
+  },
+  {
+    "text": "يرجى حذف حسابي ومسح جميع بياناتي الشخصية بشكل دائم.",
+    "label": 1,
+    "dataset_source": "Dataset_B_Multilingual_ar"
+  },
+  {
+    "text": "أطلب إغلاق حسابي وإزالة كل سجلاتي الشخصية من أنظمتكم.",
+    "label": 1,
+    "dataset_source": "Dataset_B_Multilingual_ar"
+  },
+  {
+    "text": "Пожалуйста, удалите мою учетную запись и все персональные данные безвозвратно.",
+    "label": 1,
+    "dataset_source": "Dataset_B_Multilingual_ru"
+  },
+  {
+    "text": "Прошу удалить мой профиль и стереть всю историю из баз данных.",
+    "label": 1,
+    "dataset_source": "Dataset_B_Multilingual_ru"
+  },
+  {
+    "text": "请注销我的账户并彻底删除我的所有个人数据和历史记录。",
+    "label": 1,
+    "dataset_source": "Dataset_B_Multilingual_zh"
+  },
+  {
+    "text": "我申请关闭账户并清除所有个人信息，谢谢。",
+    "label": 1,
+    "dataset_source": "Dataset_B_Multilingual_zh"
+  },
+  {
+    "text": "Under GDPR Article 15, I request a complete copy of all personal data you hold about me.",
+    "label": 0,
+    "dataset_source": "Dataset_C_DSAR_NonDeletion"
+  },
+  {
+    "text": "Please provide an export of my transaction history and data portability file under Article 20.",
+    "label": 0,
+    "dataset_source": "Dataset_C_DSAR_NonDeletion"
+  },
+  {
+    "text": "I am requesting access to my records under data subject access rights. Do not close my account.",
+    "label": 0,
+    "dataset_source": "Dataset_C_DSAR_NonDeletion"
+  },
+  {
+    "text": "Could you send me an export of all information you store about me? I still use this account.",
+    "label": 0,
+    "dataset_source": "Dataset_C_DSAR_NonDeletion"
+  },
+  {
+    "text": "Please send a copy of my personal data file. Keep my account as it is.",
+    "label": 0,
+    "dataset_source": "Dataset_C_DSAR_NonDeletion"
+  },
+  {
+    "text": "I want to exercise my right of access under GDPR. Please do not delete or change anything.",
+    "label": 0,
+    "dataset_source": "Dataset_C_DSAR_NonDeletion"
+  },
+  {
+    "text": "Send me a machine-readable JSON copy of my activity history without deleting my account.",
+    "label": 0,
+    "dataset_source": "Dataset_C_DSAR_NonDeletion"
+  },
+  {
+    "text": "I need a copy of last year's invoices for tax compliance. Leave my profile and history in place.",
+    "label": 0,
+    "dataset_source": "Dataset_C_DSAR_NonDeletion"
+  },
+  {
+    "text": "Under Article 15 GDPR, please disclose all third parties who received my data. Keep account active.",
+    "label": 0,
+    "dataset_source": "Dataset_C_DSAR_NonDeletion"
+  },
+  {
+    "text": "I would like to download my account information in a portable format. Please keep the account as it is.",
+    "label": 0,
+    "dataset_source": "Dataset_C_DSAR_NonDeletion"
+  },
+  {
+    "text": "Please provide a duplicate copy of my customer profile and contract terms.",
+    "label": 0,
+    "dataset_source": "Dataset_C_DSAR_NonDeletion"
+  },
+  {
+    "text": "Can I obtain a full report of all data stored under my profile? I do not want deletion.",
+    "label": 0,
+    "dataset_source": "Dataset_C_DSAR_NonDeletion"
+  },
+  {
+    "text": "Send me my annual order summary and receipts. Please leave the account active.",
+    "label": 0,
+    "dataset_source": "Dataset_C_DSAR_NonDeletion"
+  },
+  {
+    "text": "Conformément à l'article 15 du RGPD, je demande l'accès à mes données sans suppression de mon compte.",
+    "label": 0,
+    "dataset_source": "Dataset_C_DSAR_NonDeletion"
+  },
+  {
+    "text": "Gemäß Art. 15 DSGVO bitte ich um Auskunft über meine Daten. Mein Konto bitte keinesfalls löschen.",
+    "label": 0,
+    "dataset_source": "Dataset_C_DSAR_NonDeletion"
+  },
+  {
+    "text": "Solicito una copia de mis datos personales según el artículo 15 del RGPD sin dar de baja mi cuenta.",
+    "label": 0,
+    "dataset_source": "Dataset_C_DSAR_NonDeletion"
+  },
+  {
+    "text": "I considered deleting my account, but I have decided to stay. Please keep it active.",
+    "label": 0,
+    "dataset_source": "Dataset_D_Adversarial_Negations"
+  },
+  {
+    "text": "Do not delete or change anything on my profile; I just had a question about billing.",
+    "label": 0,
+    "dataset_source": "Dataset_D_Adversarial_Negations"
+  },
+  {
+    "text": "Please do not delete my account until my pending order #92837 has been delivered.",
+    "label": 0,
+    "dataset_source": "Dataset_D_Adversarial_Negations"
+  },
+  {
+    "text": "I want to remove my saved credit card from the wallet, but leave my account open.",
+    "label": 0,
+    "dataset_source": "Dataset_D_Adversarial_Negations"
+  },
+  {
+    "text": "Can you delete only my old delivery address while keeping my main account intact?",
+    "label": 0,
+    "dataset_source": "Dataset_D_Adversarial_Negations"
+  },
+  {
+    "text": "Do not close the account. I just need help resetting my login password.",
+    "label": 0,
+    "dataset_source": "Dataset_D_Adversarial_Negations"
+  },
+  {
+    "text": "My surname is misspelled on the account. Can you correct it without removing any of my records?",
+    "label": 0,
+    "dataset_source": "Dataset_D_Adversarial_Negations"
+  },
+  {
+    "text": "I was thinking about deletion earlier, but please ignore that. Keep my profile active.",
+    "label": 0,
+    "dataset_source": "Dataset_D_Adversarial_Negations"
+  },
+  {
+    "text": "Please remove my browsing history search queries, but keep my customer profile active.",
+    "label": 0,
+    "dataset_source": "Dataset_D_Adversarial_Negations"
+  },
+  {
+    "text": "I want to delete my secondary email alias only. Leave my primary account in place.",
+    "label": 0,
+    "dataset_source": "Dataset_D_Adversarial_Negations"
+  },
+  {
+    "text": "Stop sending promotional emails. Unsubscribe me from marketing, but do not delete my account.",
+    "label": 0,
+    "dataset_source": "Dataset_D_Adversarial_Negations"
+  },
+  {
+    "text": "Never delete my account under any circumstances; please flag it as protected.",
+    "label": 0,
+    "dataset_source": "Dataset_D_Adversarial_Negations"
+  },
+  {
+    "text": "Bitte mein Profil nicht löschen, sondern nur die Telefonnummer aktualisieren.",
+    "label": 0,
+    "dataset_source": "Dataset_D_Adversarial_Negations"
+  },
+  {
+    "text": "Ne supprimez pas mon compte s'il vous plaît, je veux juste changer d'adresse.",
+    "label": 0,
+    "dataset_source": "Dataset_D_Adversarial_Negations"
+  },
+  {
+    "text": "No borren mi cuenta. Solo quiero actualizar el método de pago.",
+    "label": 0,
+    "dataset_source": "Dataset_D_Adversarial_Negations"
+  },
+  {
+    "text": "I forgot my password. Can you send me a reset link to my registered email?",
+    "label": 0,
+    "dataset_source": "Dataset_E_Account_Maintenance"
+  },
+  {
+    "text": "The mobile number on my profile is out of date. Please replace it with the new one and leave the account active.",
+    "label": 0,
+    "dataset_source": "Dataset_E_Account_Maintenance"
+  },
+  {
+    "text": "I moved to a new apartment. Please update my shipping address to 742 Evergreen Terrace.",
+    "label": 0,
+    "dataset_source": "Dataset_E_Account_Maintenance"
+  },
+  {
+    "text": "Can you help me enable two-factor authentication on my profile?",
+    "label": 0,
+    "dataset_source": "Dataset_E_Account_Maintenance"
+  },
+  {
+    "text": "I'm having trouble logging in after the recent app update. Please help.",
+    "label": 0,
+    "dataset_source": "Dataset_E_Account_Maintenance"
+  },
+  {
+    "text": "Please change the email address used for this account. I want to continue using the service.",
+    "label": 0,
+    "dataset_source": "Dataset_E_Account_Maintenance"
+  },
+  {
+    "text": "My invoice from yesterday has an incorrect billing address. Can you resend a corrected invoice?",
+    "label": 0,
+    "dataset_source": "Dataset_E_Account_Maintenance"
+  },
+  {
+    "text": "I cannot access my order history tab. Could technical support look into this bug?",
+    "label": 0,
+    "dataset_source": "Dataset_E_Account_Maintenance"
+  },
+  {
+    "text": "Can I link my Google account for single sign-on without losing my purchase history?",
+    "label": 0,
+    "dataset_source": "Dataset_E_Account_Maintenance"
+  },
+  {
+    "text": "Please change my communication preference to SMS only. Do not touch my account.",
+    "label": 0,
+    "dataset_source": "Dataset_E_Account_Maintenance"
+  },
+  {
+    "text": "How do I redeem my loyalty rewards points on my next purchase?",
+    "label": 0,
+    "dataset_source": "Dataset_E_Account_Maintenance"
+  },
+  {
+    "text": "I received an unexpected verification code. Can you confirm if my account is secure?",
+    "label": 0,
+    "dataset_source": "Dataset_E_Account_Maintenance"
+  },
+  {
+    "text": "Cancel my SaaS subscription immediately and purge all tenant data and configurations.",
+    "label": 1,
+    "dataset_source": "Dataset_F_Multi_Domain"
+  },
+  {
+    "text": "I am switching to another banking service. Close my user profile and wipe credentials.",
+    "label": 1,
+    "dataset_source": "Dataset_F_Multi_Domain"
+  },
+  {
+    "text": "Health record closure: delete my patient portal profile and erase linked metrics.",
+    "label": 1,
+    "dataset_source": "Dataset_F_Multi_Domain"
+  },
+  {
+    "text": "Terminate my cloud workspace and delete all customer data snapshots within scope.",
+    "label": 1,
+    "dataset_source": "Dataset_F_Multi_Domain"
+  },
+  {
+    "text": "Please process an account termination request and provide written confirmation of data destruction.",
+    "label": 1,
+    "dataset_source": "Dataset_F_Multi_Domain"
+  },
+  {
+    "text": "Cancel my paid subscription renewal, but keep my free account tier active.",
+    "label": 0,
+    "dataset_source": "Dataset_F_Multi_Domain"
+  },
+  {
+    "text": "Downgrade my workspace plan to starter. Do not delete any existing files or history.",
+    "label": 0,
+    "dataset_source": "Dataset_F_Multi_Domain"
+  },
+  {
+    "text": "Pause my membership for 3 months while I am traveling abroad. Do not erase my profile.",
+    "label": 0,
+    "dataset_source": "Dataset_F_Multi_Domain"
+  },
+  {
+    "text": "Please send my bank statements for the last 5 years. Maintain my user profile active.",
+    "label": 0,
+    "dataset_source": "Dataset_F_Multi_Domain"
+  },
+  {
+    "text": "Transfer my healthcare records to my new clinic without deleting my existing account.",
+    "label": 0,
+    "dataset_source": "Dataset_F_Multi_Domain"
+  }
+]

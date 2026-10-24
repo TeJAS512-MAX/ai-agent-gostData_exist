@@ -157,7 +157,7 @@ def _print_report(
 ):
     sep = "=" * 60
     print(sep)
-    print("  Northstar Shop Deletion Audit — Evaluation Report")
+    print("  Northstar Shop Deletion Audit - Evaluation Report")
     print(sep)
     print(f"  Total cases evaluated  : {n}")
     print()

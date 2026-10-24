@@ -1,6 +1,17 @@
 import unittest
 
-from code.engine.intent_gate import IntentGate
+import sys
+from pathlib import Path
+_root = Path(__file__).resolve().parent.parent.parent
+if str(_root) not in sys.path:
+    sys.path.insert(0, str(_root))
+_code = Path(__file__).resolve().parent.parent
+if str(_code) not in sys.path:
+    sys.path.insert(0, str(_code))
+try:
+    from code.engine.intent_gate import IntentGate
+except (ModuleNotFoundError, ImportError):
+    from engine.intent_gate import IntentGate
 
 
 class IntentGateCustomCases(unittest.TestCase):

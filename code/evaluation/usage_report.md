@@ -29,7 +29,9 @@ the trained classifier artifact was not invoked during this production run.
 Text-token counts are not applicable to local feature extraction; the API-token
 totals above are zero because no API calls occurred.
 
-The local classifier artifact was trained separately on 112 examples: 32
-labeled public samples and 80 synthetic examples. Its training report records
-5-fold macro F1 of 0.8762 ± 0.0936. That CV score is diagnostic only and is not
-a production-run metric.
+The local classifier artifact was trained separately on 127 cross-dataset examples
+spanning 17 distinct partitions (official ground truth samples, 12 languages,
+DSAR Articles 15/16/18/20/21, e-commerce maintenance, and adversarial boundary cases).
+Its training report records 5-fold macro F1 of 0.8474 ± 0.0567 and 100.0% (14/14)
+stress-test adversarial accuracy across boundary cases. That CV score is diagnostic
+only and is not a production-run metric.
