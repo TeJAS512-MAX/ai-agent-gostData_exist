@@ -45,3 +45,6 @@ scratch_*.*
 hackerrank-orchestrate-october26-main/
 hackerrank_repo/
 
+
+# External downloaded datasets
+external_datasets/
