@@ -107,6 +107,28 @@ This document provides exact, winning answers, architectural justifications, tra
 
 ---
 
+
+---
+
+### 9. Real-World Limitations, Failure Boundaries & Enterprise Next-Level Mitigations
+**Q: What are the real-world drawbacks or failure boundaries of this system, and how would you harden them in a large-scale enterprise deployment?**
+> **Winning Answer:**  
+> *"Our architecture was intentionally designed for deterministic mathematical correctness over unconstrained generative flexibility. In a real-world enterprise deployment, there are 7 critical failure boundaries and concrete next-level mitigations:*
+>
+> *1. **In-Memory Evidence Scaling (Interim vs. End-State):** Today, our scanner uses in-memory SQLite. Instead of jumping prematurely to expensive distributed engines (Trino/Snowflake) which add compute cost and query latency, our interim step uses **streaming/chunked ingestion** (`pandas.read_sql` with `chunksize`, `ijson`, and file-backed SQLite when file size exceeds a memory threshold), coupled with an **OOM circuit breaker** watchdog. Our long-term architecture uses **tiered storage** (hot recent users cached locally, cold legacy archives queried via distributed engines).*
+>
+> *2. **Rule Rigidity & Policy-Gap Detection:** A deterministic policy solver cannot invent new laws. Rather than silently skipping unmapped data categories, our engine includes **explicit policy-gap detection** that dumps unmapped categories into an escalation queue (`policy_gaps.jsonl`) for human review. Every rule carries `version`, `effective_date`, and `legal_basis` metadata, is tested in **shadow mode** against historical verdicts before go-live, and encodes **statutory decay logic** (e.g. 7-year retention sunset).*
+>
+> *3. **OCR/Vision Pipeline Accuracy & Drift:** High-throughput OCR on blurry screenshots risks confident misreads. We enforce a **dual-pass agreement requirement** (local PaddleOCR + Vision-LLM pass; disagreements escalate to human adjudication). We propagate **confidence-weighted findings** into citations, monitor extraction confidence distributions for **drift**, and apply **cost-aware tiering** (cheap local templates first, cloud vision only for ambiguous images).*
+>
+> *4. **Passive Audit vs. Safe Active Execution:** Our agent generates the plan; it does not blindly delete live data. In `code/engine/production_governance.py`, we implemented: (a) a **risk-tiered approval gate** (`HumanInTheLoopApprovalQueue` requiring DPO/Legal sign-off for destructive actions); (b) **encrypted pre-change rollback snapshots** before any `DELETE_RECORD`; (c) **blast-radius rate limiting** (capping destructive actions per hour); and (d) **idempotency keys** on every step to prevent duplicate execution on retries.*
+>
+> *5. **Fail-Closed Intent & Active Learning Loop:** Borderline colloquial phrasing ($0.35 < p < 0.65$) fails closed to `NOT_APPLICABLE` to protect account safety. Crucially, this is not a dead end: every human-in-the-loop resolution feeds into an **active learning loop** for scheduled batch retraining. Probability bands are calibrated via **isotonic regression**, inputs are sanitized against **prompt-injection attacks**, and multilingual text is routed via explicit language detection.*
+>
+> *6. **Requester Identity Verification (The Crucial Security Layer):** A major real-world attack vector against GDPR erasure systems is malicious third parties submitting deletions for victims. In enterprise production, an **explicit requester authentication layer** (multi-factor confirmation link, password re-entry, or identity-verification service) must verify the requester's authority before the audit pipeline triggers, logging this proof in the audit ledger.*
+>
+> *7. **Honest Small-Sample Validation Framing:** While our agent achieves **100.00% on the 32 official golden sample cases**, that does not automatically guarantee 100% on the hidden 518-case test set. That is why we engineered a **15-Way Master Test Suite** (`run_all_project_tests.py`) that stress-tests beyond the sample set: 100 adversarial negation attacks, 676 polyglot GDPR turns, customer support noise, and split-brain enterprise failure scenarios."*
+
 ## 📋 Quick Pre-Interview Checklist (Day of Interview)
 
 1. **Camera & Audio:** Test web camera and microphone beforehand (keeping camera on is mandatory).
