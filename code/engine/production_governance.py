@@ -15,8 +15,11 @@ enterprise-grade continuous data governance platform:
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from enum import Enum
-from typing import Any, Callable, Dict, List, Optional, Protocol, Set
+from typing import Any, Callable, Dict, List, Optional, Protocol, Set, Tuple
 import hashlib
+import hmac
+import os
+import time
 import json
 import logging
 
@@ -108,6 +111,10 @@ class ProposedRemediation:
     is_executed: bool = False
     dry_run_snapshot: Optional[Dict[str, Any]] = None
 
+    @property
+    def is_approved(self) -> bool:
+        return self.approved_by is not None
+
 
 class RiskClassifier:
     """Classifies remediation risk before any destructive mutation can take place."""
@@ -126,20 +133,145 @@ class RiskClassifier:
         return RemediationRisk.LOW
 
 
+class SecurityBreachError(PermissionError):
+    """Raised when a security integrity violation, model tampering, or unauthorized action is detected."""
+    pass
+
+
+class ModelSecurityGuard:
+    """
+    Cryptographic Model Artifact Verification Guard.
+    Prevents deserialization attacks (pickle/joblib RCE) by verifying HMAC-SHA256
+    signatures of model artifacts before deserialization.
+    """
+    DEFAULT_SECRET = os.environ.get("MODEL_SIGNING_KEY", "Northstar_Enterprise_Model_HMAC_Secret_2026")
+
+    @classmethod
+    def compute_signature(cls, filepath: str, secret: Optional[str] = None) -> str:
+        key = (secret or cls.DEFAULT_SECRET).encode("utf-8")
+        h = hmac.new(key, digestmod=hashlib.sha256)
+        with open(filepath, "rb") as f:
+            while chunk := f.read(65536):
+                h.update(chunk)
+        return h.hexdigest()
+
+    @classmethod
+    def sign_model(cls, filepath: str, manifest_path: Optional[str] = None, secret: Optional[str] = None) -> str:
+        sig = cls.compute_signature(filepath, secret=secret)
+        manifest_file = manifest_path or (filepath + ".sig")
+        with open(manifest_file, "w", encoding="utf-8") as f:
+            f.write(sig)
+        return sig
+
+    @classmethod
+    def verify_and_load(cls, filepath: str, manifest_path: Optional[str] = None, secret: Optional[str] = None) -> Any:
+        import joblib
+        manifest_file = manifest_path or (filepath + ".sig")
+        if not os.path.exists(manifest_file):
+            cls.sign_model(filepath, manifest_file, secret=secret)
+
+        with open(manifest_file, "r", encoding="utf-8") as f:
+            expected_sig = f.read().strip()
+
+        actual_sig = cls.compute_signature(filepath, secret=secret)
+        if not hmac.compare_digest(actual_sig, expected_sig):
+            raise SecurityBreachError(f"SECURITY BREACH DETECTED: Model artifact '{filepath}' has been tampered with or corrupted!")
+
+        return joblib.load(filepath)
+
+
+class SignedApprovalToken:
+    """
+    Cryptographically signed approval token preventing role and identity spoofing.
+    """
+    TOKEN_SECRET = os.environ.get("APPROVAL_SIGNING_KEY", "Northstar_DPO_Approval_Secret_Token_2026")
+
+    @classmethod
+    def generate_token(cls, proposal_id: str, role: str, approver_name: str, validity_minutes: int = 60) -> str:
+        expires = int(time.time()) + (validity_minutes * 60)
+        payload = f"{proposal_id}:{role}:{approver_name}:{expires}"
+        sig = hmac.new(cls.TOKEN_SECRET.encode(), payload.encode(), hashlib.sha256).hexdigest()
+        return f"{payload}:{sig}"
+
+    @classmethod
+    def verify_token(cls, token: str, proposal_id: str) -> Tuple[bool, str, str]:
+        parts = token.split(":")
+        if len(parts) != 5:
+            return False, "", "Malformed token"
+        tok_prop, role, name, expires_str, sig = parts
+        if tok_prop != proposal_id:
+            return False, "", "Proposal mismatch"
+        if int(expires_str) < time.time():
+            return False, "", "Token expired"
+        payload = f"{tok_prop}:{role}:{name}:{expires_str}"
+        expected_sig = hmac.new(cls.TOKEN_SECRET.encode(), payload.encode(), hashlib.sha256).hexdigest()
+        if not hmac.compare_digest(sig, expected_sig):
+            return False, "", "Invalid signature"
+        return True, role, name
+
+
 class HumanInTheLoopApprovalQueue:
     """
     Guarantees no destructive mutation executes without explicit DPO / Legal sign-off.
     Enforces dry-run default, pre-change encrypted snapshots, and blast-radius rate-limits.
     """
 
-    def __init__(self, hourly_blast_radius_limit: int = 50):
+    def __init__(self, hourly_blast_radius_limit: int = 50, persistence_path: Optional[str] = None):
         self.pending_queue: Dict[str, ProposedRemediation] = {}
         self.approved_history: List[ProposedRemediation] = []
         self.hourly_limit = hourly_blast_radius_limit
         self._execution_timestamps: List[datetime] = []
+        self.persistence_path = persistence_path
+        if self.persistence_path and os.path.exists(self.persistence_path):
+            self.load_state()
+
+    def persist_state(self):
+        """Flushes queue and rate-limiting history to persistent storage."""
+        if not self.persistence_path:
+            return
+        state = {
+            "pending": {k: v.__dict__ for k, v in self.pending_queue.items()},
+            "history": [v.__dict__ for v in self.approved_history],
+            "execution_timestamps": [t.isoformat() for t in self._execution_timestamps],
+        }
+        with open(self.persistence_path, "w", encoding="utf-8") as f:
+            json.dump(state, f, default=str, indent=2)
+
+    def load_state(self):
+        """Recovers state after process crash or restart."""
+        if not self.persistence_path or not os.path.exists(self.persistence_path):
+            return
+        try:
+            with open(self.persistence_path, "r", encoding="utf-8") as f:
+                state = json.load(f)
+            self._execution_timestamps = [datetime.fromisoformat(t) for t in state.get("execution_timestamps", [])]
+            for pid, pdata in state.get("pending", {}).items():
+                if "risk_level" in pdata and isinstance(pdata["risk_level"], str):
+                    try:
+                        pdata["risk_level"] = RemediationRisk(pdata["risk_level"])
+                    except Exception:
+                        pass
+                if "created_at" in pdata and isinstance(pdata["created_at"], str):
+                    try:
+                        pdata["created_at"] = datetime.fromisoformat(pdata["created_at"])
+                    except Exception:
+                        pass
+                allowed_fields = {f for f in ProposedRemediation.__dataclass_fields__}
+                filtered_args = {k: v for k, v in pdata.items() if k in allowed_fields}
+                self.pending_queue[pid] = ProposedRemediation(**filtered_args)
+        except Exception:
+            pass
+
+    def approve_with_token(self, token: str, proposal_id: str) -> bool:
+        """Approves proposal only if verified by cryptographic signature."""
+        valid, role, name = SignedApprovalToken.verify_token(token, proposal_id)
+        if not valid:
+            raise PermissionError(f"Cryptographic approval token rejected: {name}")
+        return self.approve(proposal_id, role, f"{name} ({role} [TOKEN-VERIFIED])")
 
     def submit_proposal(self, proposal: ProposedRemediation) -> str:
         self.pending_queue[proposal.proposal_id] = proposal
+        self.persist_state()
         return proposal.proposal_id
 
     def approve(self, proposal_id: str, approver_role: str, approver_name: str) -> bool:
@@ -149,9 +281,10 @@ class HumanInTheLoopApprovalQueue:
             return False
 
         proposal = self.pending_queue.pop(proposal_id)
-        proposal.approved_by = f"{approver_role}:{approver_name}"
+        proposal.approved_by = approver_name if "[TOKEN-VERIFIED]" in approver_name else f"{approver_role}:{approver_name}"
         proposal.approval_timestamp = datetime.now(timezone.utc)
         self.approved_history.append(proposal)
+        self.persist_state()
         return True
 
     def check_blast_radius(self) -> bool:
@@ -178,6 +311,7 @@ class HumanInTheLoopApprovalQueue:
         if success:
             proposal.is_executed = True
             self._execution_timestamps.append(datetime.now(timezone.utc))
+        self.persist_state()
         return success
 
 

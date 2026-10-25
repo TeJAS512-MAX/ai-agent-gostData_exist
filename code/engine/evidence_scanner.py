@@ -509,12 +509,17 @@ class EvidenceScanner:
         sql_files = self.manifest_df[self.manifest_df['file_path'].str.endswith('.sql')]
         for fid, r in sql_files.iterrows():
             full_p = os.path.join(self.dataset_dir, r['file_path'])
-            if not os.path.exists(full_p):
+            # DoS Protection: reject non-existent or adversarial oversized files (>50MB)
+            if not os.path.exists(full_p) or os.path.getsize(full_p) > 50 * 1024 * 1024:
                 continue
             with open(full_p, 'r', encoding='utf-8', errors='ignore') as f:
                 content = f.read()
 
             conn = sqlite3.connect(':memory:')
+            try:
+                conn.execute("PRAGMA max_page_count = 20000;")  # Max memory bounding
+            except Exception:
+                pass
             try:
                 conn.executescript(content)
                 cur = conn.cursor()

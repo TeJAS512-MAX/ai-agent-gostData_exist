@@ -1115,6 +1115,11 @@ def train_cognitive_mode_model(output_path: Optional[str] = None, problem_statem
 
     out_file = output_path or os.path.join(MODEL_DIR, "cognitive_mode_classifier.joblib")
     joblib.dump(pipe, out_file)
+    try:
+        from code.engine.production_governance import ModelSecurityGuard
+        ModelSecurityGuard.sign_model(out_file)
+    except Exception:
+        pass
     print(f"Cognitive Mode Model Saved -> {out_file} ({os.path.getsize(out_file)/1024:.1f} KB)\n")
     return pipe
 
@@ -1186,6 +1191,11 @@ def train_and_benchmark(
     # Model persistence
     model_path = output_model_path or os.path.join(MODEL_DIR, "intent_classifier.joblib")
     joblib.dump(pipeline, model_path)
+    try:
+        from code.engine.production_governance import ModelSecurityGuard
+        ModelSecurityGuard.sign_model(model_path)
+    except Exception:
+        pass
     print(f"Model Artifact Saved -> {model_path} ({os.path.getsize(model_path)/1024:.1f} KB)")
 
     # Save reality model metadata

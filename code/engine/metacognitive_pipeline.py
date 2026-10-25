@@ -87,8 +87,11 @@ class MetaCognitiveGovernor:
             ]
             for p in cand_paths:
                 if os.path.exists(p):
-                    import joblib
-                    self._ml_mode_model = joblib.load(p)
+                    try:
+                        from code.engine.production_governance import ModelSecurityGuard
+                    except ImportError:
+                        from engine.production_governance import ModelSecurityGuard
+                    self._ml_mode_model = ModelSecurityGuard.verify_and_load(p)
                     break
         except Exception:
             self._ml_mode_model = None

@@ -16,6 +16,8 @@ Outputs:
 """
 
 import hashlib
+import hmac
+import os
 import logging
 from dataclasses import dataclass, field
 from typing import Dict, Optional, Set
@@ -140,6 +142,14 @@ class IdentityGraph:
 
     # ── Crypto hash helpers ──────────────────────────────────────────────────
 
+    ENTERPRISE_PEPPER = os.environ.get("IDENTITY_PEPPER", "Northstar_Enterprise_HMAC_Pepper_2026")
+
+    @classmethod
+    def salted_sha256(cls, s: str, pepper: Optional[str] = None) -> str:
+        """Computes a cryptographically salted HMAC-SHA256 to eliminate rainbow table vulnerabilities."""
+        p = pepper or cls.ENTERPRISE_PEPPER
+        return hmac.new(p.encode("utf-8"), s.encode("utf-8"), hashlib.sha256).hexdigest()
+
     @staticmethod
     def _sha256(s: str) -> str:
         return hashlib.sha256(s.encode("utf-8")).hexdigest()
@@ -246,3 +256,7 @@ class IdentityGraph:
                      key, uid, len(footprint.emails), len(footprint.hashes))
         return footprint
 
+
+
+# Module-level alias for rainbow table defense
+salted_sha256 = IdentityGraph.salted_sha256

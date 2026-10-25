@@ -32,9 +32,12 @@ def _load_trained_model():
         return _trained_clf
     if os.path.exists(_MODEL_PATH):
         try:
-            import joblib
-            _trained_clf = joblib.load(_MODEL_PATH)
-            logger.debug("Stage 1B: Loaded trained classifier from %s", _MODEL_PATH)
+            try:
+                from code.engine.production_governance import ModelSecurityGuard
+            except ImportError:
+                from engine.production_governance import ModelSecurityGuard
+            _trained_clf = ModelSecurityGuard.verify_and_load(_MODEL_PATH)
+            logger.debug("Stage 1B: Loaded verified trained classifier from %s", _MODEL_PATH)
         except Exception as exc:
             logger.warning("Stage 1B: Failed to load trained model: %s", exc)
     return _trained_clf

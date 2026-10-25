@@ -11,6 +11,9 @@ if CODE_DIR not in sys.path:
     sys.path.insert(0, CODE_DIR)
 
 from code.engine.production_governance import (
+    ModelSecurityGuard,
+    SignedApprovalToken,
+    SecurityBreachError,
     ConnectorRegistry,
     EvidenceConnector,
     ResourceRef,
@@ -145,6 +148,120 @@ class TestProductionGovernance(unittest.TestCase):
         self.assertEqual(len(dispatches), 3)
         self.assertEqual(dispatches[0].vendor_name, "Stripe Payments")
 
+
+
+    def test_06_model_security_guard_tamper_detection(self):
+        import tempfile
+        import joblib
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            model_file = os.path.join(tmpdir, "test_model.joblib")
+            dummy_obj = {"name": "test_classifier", "weights": [0.1, 0.4, 0.9]}
+            joblib.dump(dummy_obj, model_file)
+
+            # Compute and store HMAC signature
+            sig = ModelSecurityGuard.sign_model(model_file)
+            self.assertTrue(os.path.exists(model_file + ".sig"))
+
+            # 1. Unmodified model loads cleanly
+            loaded = ModelSecurityGuard.verify_and_load(model_file)
+            self.assertEqual(loaded["name"], "test_classifier")
+
+            # 2. Tamper with model artifact (inject bit-flip attack)
+            with open(model_file, "r+b") as f:
+                f.seek(5)
+                f.write(b"\xff\xff")
+
+            # 3. Security guard must intercept and block tampered model
+            with self.assertRaises(SecurityBreachError):
+                ModelSecurityGuard.verify_and_load(model_file)
+
+    def test_07_signed_approval_token_verification(self):
+        queue = HumanInTheLoopApprovalQueue(hourly_blast_radius_limit=10)
+        proposal = ProposedRemediation(
+            proposal_id="prop_sec_007",
+            case_id="case_777",
+            user_id="user_777",
+            system_id="auth_service",
+            resource_id="user_777_tok",
+            operation="DELETE_RECORD",
+            target_state="ABSENT",
+            evidence_id="ev_07",
+            risk_level=RemediationRisk.HIGH,
+            legal_basis="GDPR Art 17(1)",
+        )
+        queue.submit_proposal(proposal)
+
+        # 1. Generate valid DPO token
+        token = SignedApprovalToken.generate_token("prop_sec_007", "DPO", "Compliance_Officer_Alice")
+        valid, role, approver = SignedApprovalToken.verify_token(token, "prop_sec_007")
+        self.assertTrue(valid)
+        self.assertEqual(role, "DPO")
+        self.assertEqual(approver, "Compliance_Officer_Alice")
+
+        # 2. Approve via cryptographic token
+        approved = queue.approve_with_token(token, "prop_sec_007")
+        self.assertTrue(approved)
+        self.assertTrue(proposal.is_approved)
+        self.assertEqual(proposal.approved_by, "Compliance_Officer_Alice (DPO [TOKEN-VERIFIED])")
+
+        # 3. Forged token rejected
+        forged_token = token[:-4] + "dead"
+        with self.assertRaises(PermissionError):
+            queue.approve_with_token(forged_token, "prop_sec_007")
+
+    def test_08_queue_durable_persistence_across_restarts(self):
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            persist_file = os.path.join(tmpdir, "approval_queue_state.json")
+            q1 = HumanInTheLoopApprovalQueue(hourly_blast_radius_limit=15, persistence_path=persist_file)
+
+            prop = ProposedRemediation(
+                proposal_id="prop_durable_01",
+                case_id="case_dur_01",
+                user_id="user_dur",
+                system_id="crm_service",
+                resource_id="contact_888",
+                operation="DELETE_RECORD",
+                target_state="ABSENT",
+                evidence_id="ev_crm",
+                risk_level=RemediationRisk.HIGH,
+                legal_basis="CCPA 1798.105",
+            )
+            q1.submit_proposal(prop)
+            self.assertTrue(os.path.exists(persist_file))
+
+            # Simulate complete process crash & restart
+            q2 = HumanInTheLoopApprovalQueue(hourly_blast_radius_limit=15, persistence_path=persist_file)
+            self.assertIn("prop_durable_01", q2.pending_queue)
+            loaded_prop = q2.pending_queue["prop_durable_01"]
+            self.assertEqual(loaded_prop.user_id, "user_dur")
+            self.assertEqual(loaded_prop.risk_level, RemediationRisk.HIGH)
+
+    def test_09_salted_sha256_rainbow_table_defense(self):
+        from code.engine.identity_graph import salted_sha256
+        import hashlib
+
+        email = "victim.executive@example.com"
+        unsalted_sha256 = hashlib.sha256(email.encode("utf-8")).hexdigest()
+
+        pepper_a = "Enterprise_Salt_A"
+        pepper_b = "Enterprise_Salt_B"
+
+        salted_a = salted_sha256(email, pepper=pepper_a)
+        salted_b = salted_sha256(email, pepper=pepper_b)
+
+        # 1. Output must be a valid 64-character SHA256 hex string
+        self.assertEqual(len(salted_a), 64)
+        self.assertEqual(len(salted_b), 64)
+
+        # 2. Salted output must NEVER match raw unsalted rainbow-table hash
+        self.assertNotEqual(salted_a, unsalted_sha256)
+        self.assertNotEqual(salted_b, unsalted_sha256)
+
+        # 3. Different peppers produce distinct digests
+        self.assertNotEqual(salted_a, salted_b)
 
 if __name__ == "__main__":
     unittest.main()
