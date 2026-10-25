@@ -98,7 +98,7 @@ class LLMClient:
         full_prompt = "\n".join(prompt_parts)
 
         # Candidate models supported by Gemini API
-        gemini_models = ["gemini-2.5-flash", "gemini-3.8-flash", "gemini-flash-latest"]
+        gemini_models = ["gemini-flash-latest", "gemini-2.5-flash-lite", "gemini-3-flash-preview", "gemini-3.8-flash"]
         for g_model in gemini_models:
             url = f"https://generativelanguage.googleapis.com/v1beta/models/{g_model}:generateContent?key={self.gemini_key}"
             payload = json.dumps({

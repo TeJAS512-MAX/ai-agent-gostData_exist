@@ -1079,7 +1079,10 @@ def train_cognitive_mode_model(output_path: Optional[str] = None, problem_statem
         try:
             from code.engine.production_governance import ModelSecurityGuard
         except ImportError:
-            from engine.production_governance import ModelSecurityGuard
+            try:
+                from engine.production_governance import ModelSecurityGuard
+            except ImportError:
+                from production_governance import ModelSecurityGuard
         ModelSecurityGuard.sign_model(out_file)
     except Exception as exc:
         logger.warning("Could not sign cognitive mode model: %s", exc)
@@ -1158,7 +1161,10 @@ def train_and_benchmark(
         try:
             from code.engine.production_governance import ModelSecurityGuard
         except ImportError:
-            from engine.production_governance import ModelSecurityGuard
+            try:
+                from engine.production_governance import ModelSecurityGuard
+            except ImportError:
+                from production_governance import ModelSecurityGuard
         ModelSecurityGuard.sign_model(model_path)
     except Exception as exc:
         logger.warning("Could not sign intent model: %s", exc)
