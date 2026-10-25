@@ -29,7 +29,6 @@ import sqlite3
 import threading
 import time
 from enum import Enum
-from pathlib import Path
 from typing import Any, Dict, List, Literal, Optional
 
 from pydantic import BaseModel, Field, PrivateAttr

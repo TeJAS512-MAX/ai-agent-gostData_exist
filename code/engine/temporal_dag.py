@@ -22,8 +22,8 @@ Key event classifications:
 """
 
 import logging
-from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Set, Tuple
+from dataclasses import dataclass
+from typing import List
 
 import pandas as pd
 

@@ -16,9 +16,8 @@ cryptography, topology, and category theory:
 
 import math
 import hashlib
-from typing import Dict, List, Set, Tuple, Optional, Any
-from dataclasses import dataclass, field
-from collections import deque
+from typing import Dict, List, Set, Tuple, Any
+from dataclasses import dataclass
 
 
 # ==============================================================================

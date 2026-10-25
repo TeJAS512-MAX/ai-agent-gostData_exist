@@ -3,8 +3,6 @@
 import argparse
 import csv
 import json
-import os
-import sys
 from pathlib import Path
 
 

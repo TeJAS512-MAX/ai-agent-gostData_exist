@@ -15,7 +15,7 @@ and causal cycle prevention across:
 
 import logging
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Tuple
 
 logger = logging.getLogger("ComplianceMatrix")
 

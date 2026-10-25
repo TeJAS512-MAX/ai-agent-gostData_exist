@@ -23,7 +23,7 @@ Security audit log (rule_12, RETAIN):
 """
 
 import logging
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import pandas as pd
 

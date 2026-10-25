@@ -19,7 +19,7 @@ import os
 import sys
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict
 
 import pandas as pd
 
@@ -38,7 +38,7 @@ sys.path.insert(0, str(REPO_ROOT))
 sys.path.insert(0, str(REPO_ROOT / "code"))
 
 from code.engine.nstve import NSTPipeline
-from code.evaluation.evaluator import evaluate, load_csv
+from code.evaluation.evaluator import evaluate
 
 
 def _resolve_path(p: str) -> str:

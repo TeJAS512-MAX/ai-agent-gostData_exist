@@ -4,7 +4,6 @@ Unit tests for next-generation Meta-Cognitive Architecture (AOT).
 """
 
 import sys
-import os
 import unittest
 from pathlib import Path
 

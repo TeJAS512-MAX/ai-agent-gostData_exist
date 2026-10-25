@@ -18,10 +18,8 @@ deletion auditing in distributed systems:
 
 import math
 import random
-import hashlib
-from typing import Dict, List, Any, Optional, Tuple, Set
-from dataclasses import dataclass, field
-from datetime import datetime
+from typing import Dict, List, Any, Tuple, Set
+from dataclasses import dataclass
 
 
 # ==============================================================================

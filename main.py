@@ -28,7 +28,6 @@ Usage:
 """
 
 import argparse
-import asyncio
 import concurrent.futures
 import json
 import logging
@@ -37,7 +36,6 @@ import re
 import sys
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
 
 import pandas as pd
 

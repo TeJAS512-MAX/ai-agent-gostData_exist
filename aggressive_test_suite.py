@@ -16,12 +16,10 @@ Executes 7 relentless verification vectors across the entire AI agent pipeline:
 
 import json
 import os
-import re
 import sys
 import time
 import zipfile
-import traceback
-from typing import Dict, List, Any, Tuple
+from typing import Dict, Any
 
 import pandas as pd
 import numpy as np
@@ -31,7 +29,6 @@ REPO_ROOT = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, REPO_ROOT)
 sys.path.insert(0, os.path.join(REPO_ROOT, "code"))
 
-from code.engine.audit_engine import AuditEngine
 from code.engine.advanced_agent import AdvancedAuditAgent
 from code.engine.request_classifier import RequestClassifier
 from code.engine.identity_resolver import IdentityResolver

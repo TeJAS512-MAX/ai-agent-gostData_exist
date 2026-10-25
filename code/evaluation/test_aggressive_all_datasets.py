@@ -22,12 +22,8 @@ import os
 import sys
 import time
 import json
-import glob
-import math
-import hashlib
-import concurrent.futures
 from pathlib import Path
-from typing import Dict, List, Any, Tuple
+from typing import Dict, Any
 
 import numpy as np
 import pandas as pd
@@ -47,10 +43,8 @@ sys.path.insert(0, str(REPO_ROOT))
 sys.path.insert(0, str(REPO_ROOT / "code"))
 
 from code.engine.advanced_agent import AdvancedAuditAgent
-from code.engine.audit_engine import AuditEngine
 from code.engine.request_classifier import RequestClassifier
 from code.engine.complex_task_orchestrator import ComplexEnterpriseTaskOrchestrator
-from code.engine.compliance_matrix import ContractInvariantVerifier
 
 
 # ==============================================================================

@@ -15,7 +15,6 @@ from code.engine.production_governance import (
     SignedApprovalToken,
     SecurityBreachError,
     ConnectorRegistry,
-    EvidenceConnector,
     ResourceRef,
     RecordState,
     RiskClassifier,

@@ -21,11 +21,10 @@ if CODE_DIR not in sys.path:
     sys.path.insert(0, CODE_DIR)
 
 import pandas as pd
-import numpy as np
 
 from code.engine.nstve import NSTPipeline
 from code.engine.advanced_agent import AdvancedAuditAgent
-from code.evaluation.evaluator import evaluate, load_csv
+from code.evaluation.evaluator import evaluate
 
 
 def print_header(title: str):

@@ -20,7 +20,6 @@ from code.engine.oblivion_engine import (
     ResurrectionRedTeam,
     MerkleOblivionCertificate,
     ByzantineJury,
-    JurorPersona,
     BehavioralReenactmentProber,
     PolicyGapMiner,
     EpidemiologicalContactGraph,
