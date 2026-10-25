@@ -119,7 +119,9 @@ DATASET_MULTILINGUAL_DELETION = [
 
     # Japanese (JA)
     {"text": "アカウントを完全に削除し、個人データをすべて消去してください。", "lang": "ja", "label": 1},
+    {"text": "アカウントを削除してください。", "lang": "ja", "label": 1},
     {"text": "退会を希望します。私の登録情報および履歴をすべて破棄してください。", "lang": "ja", "label": 1},
+    {"text": "個人データを削除してください。", "lang": "ja", "label": 1},
 
     # Korean (KO)
     {"text": "회원 탈퇴 및 모든 개인정보의 영구 삭제를 요청합니다.", "lang": "ko", "label": 1},
@@ -450,7 +452,44 @@ def load_downloaded_problem_datasets(download_dir: Optional[str] = None) -> List
                 if intent in ["freeze_account", "account_blocked", "reset_settings", "change_user_name", "pin_change"]:
                     items.append({"text": q, "label": 0, "mode": 0, "dataset_source": f"Dataset_H_CLINC_{intent}"})
 
-    logger.info("Loaded %d items from downloaded problem datasets", len(items))
+    # 6. External Datasets (Bitext Privacy, CLINC Non-Deletion, Multilingual DSAR, Bitext Support)
+    ext_dir = os.path.join(ROOT, "external_datasets")
+    if os.path.exists(ext_dir):
+        # 6a. Bitext Privacy Benchmark (1,000 samples)
+        p_bp = os.path.join(ext_dir, "bitext_privacy_benchmark.csv")
+        if os.path.exists(p_bp):
+            df_bp = pd.read_csv(p_bp)
+            for _, r in df_bp.iterrows():
+                lbl = int(r.get("label", 0))
+                items.append({"text": str(r["text"]).strip(), "label": lbl, "mode": 1 if lbl == 1 else 0, "dataset_source": "Dataset_H_Bitext_Privacy"})
+
+        # 6b. CLINC Non-Deletion (500 samples)
+        p_cnd = os.path.join(ext_dir, "clinc_non_deletion.csv")
+        if os.path.exists(p_cnd):
+            df_cnd = pd.read_csv(p_cnd)
+            for _, r in df_cnd.iterrows():
+                items.append({"text": str(r["text"]).strip(), "label": 0, "mode": 0, "dataset_source": "Dataset_H_CLINC_NonDeletion"})
+
+        # 6c. Multilingual DSAR Privacy (44 samples - 20x anchored for balanced multilingual representation)
+        p_mdsar = os.path.join(ext_dir, "multilingual_dsar_privacy.csv")
+        if os.path.exists(p_mdsar):
+            df_mdsar = pd.read_csv(p_mdsar)
+            for _, r in df_mdsar.iterrows():
+                lbl = int(r.get("label", 1))
+                reps = 20 if lbl == 1 else 10
+                for _ in range(reps):
+                    items.append({"text": str(r["text"]).strip(), "label": lbl, "mode": 1 if lbl == 1 else 0, "dataset_source": "Dataset_H_Multilingual_DSAR"})
+
+        # 6d. Bitext Customer Support Corpora (2,000 diverse customer support queries)
+        p_bcs = os.path.join(ext_dir, "bitext_customer_support.csv")
+        if os.path.exists(p_bcs):
+            df_bcs = pd.read_csv(p_bcs)
+            sample_bcs = df_bcs.sample(min(2000, len(df_bcs)), random_state=42)
+            for _, r in sample_bcs.iterrows():
+                intent_val = str(r.get("intent", "support"))
+                items.append({"text": str(r["instruction"]).strip(), "label": 0, "mode": 0, "dataset_source": f"Dataset_H_BitextSupport_{intent_val}"})
+
+    logger.info("Loaded %d items from downloaded and external problem datasets", len(items))
     return items
 
 
@@ -634,13 +673,14 @@ def build_multi_dataset_corpus(
                     })
             logger.info("Loaded %d gold samples (50x Zero-Tolerance anchored) from Dataset A", len(merged))
 
-        # 2. Multilingual Deletions (Dataset B)
+        # 2. Multilingual Deletions (Dataset B - 30x Anchored for Cross-Lingual Balance)
         for item in DATASET_MULTILINGUAL_DELETION:
-            corpus.append({
-                "text": item["text"],
-                "label": item["label"],
-                "dataset_source": f"Dataset_B_Multilingual_{item.get('lang', 'en')}",
-            })
+            for _ in range(30):
+                corpus.append({
+                    "text": item["text"],
+                    "label": item["label"],
+                    "dataset_source": f"Dataset_B_Multilingual_{item.get('lang', 'en')}",
+                })
 
         # 3. DSAR & Non-Deletion Requests (Dataset C - 50x Zero-Tolerance Anchoring)
         for item in DATASET_DSAR_NON_DELETION:
