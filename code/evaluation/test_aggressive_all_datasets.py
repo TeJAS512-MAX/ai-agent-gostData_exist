@@ -255,6 +255,58 @@ def test_vector_4_customer_support_stress() -> Dict[str, Any]:
             if is_del == expected_del:
                 correct += 1
 
+    # Hermetic Customer Support Inquiry & Adversarial Noise Battery
+    support_battery = [
+        # Non-deletion customer support noise (expected False)
+        ("Where is my recent order #892182? It hasn't arrived yet.", False),
+        ("I would like to update my shipping address to 123 Main St.", False),
+        ("Can you help me reset my password? I cannot log in.", False),
+        ("I need an invoice copy for my tax records from last month.", False),
+        ("Why was I charged twice for subscription renewal?", False),
+        ("Please cancel my pending order #449102 before it ships.", False),
+        ("I want to return this damaged item and request a replacement.", False),
+        ("How do I add a new credit card to my payment options?", False),
+        ("Please unsubscribe me from marketing and promotional emails.", False),
+        ("Can you tell me if this product comes with a 2-year warranty?", False),
+        ("I received the wrong shoe size, need an exchange.", False),
+        ("Where can I download my account purchase history?", False),
+        ("My promo code SAVE20 isn't working at checkout.", False),
+        ("Can I transfer my reward points to another user account?", False),
+        ("I haven't received the two-factor authentication SMS code.", False),
+        ("Could you please pause my membership for two months?", False),
+        ("I want to change the email associated with my login.", False),
+        ("Is there an expedited delivery option for international shipping?", False),
+        ("The tracking number provided shows delivered but package is missing.", False),
+        ("I want to speak with a human supervisor regarding my support ticket.", False),
+        ("Please do not delete my account until my pending order arrives.", False),
+        ("I considered closing my account, but I changed my mind.", False),
+        ("Just confirming my account is active, do not remove it.", False),
+        ("Cancel my previous request to erase my profile.", False),
+        ("I dispute the late fee added to my account statement.", False),
+        ("How do I activate my physical membership card?", False),
+        ("Can you verify if my KYC documents were approved?", False),
+        ("I want to export my customer reviews to a CSV file.", False),
+        ("Please update my phone number in my profile settings.", False),
+        ("I am writing to inquire about your privacy policy under CCPA.", False),
+        # Genuine deletion requests (expected True)
+        ("Please permanently delete my Northstar account and all associated data.", True),
+        ("I demand immediate erasure of my personal records pursuant to GDPR Article 17.", True),
+        ("Please purge my entire account profile, history, and stored data immediately.", True),
+        ("I want my account completely deleted from your systems right now.", True),
+        ("Kindly erase all my personal data and close my account permanently.", True),
+        ("Please remove my profile and delete all records you hold about me.", True),
+        ("I hereby exercise my right to be forgotten and request complete account deletion.", True),
+        ("Delete my account and purge all personal information from your databases.", True),
+        ("Terminate my profile and remove all customer data permanently.", True),
+        ("I request permanent deletion of my account under privacy regulations.", True),
+    ]
+
+    for txt, exp in support_battery:
+        total += 1
+        is_del = RequestClassifier.is_deletion_request(txt)
+        if is_del == exp:
+            correct += 1
+
     elapsed = time.time() - t0
     acc = correct / max(1, total)
     passed = acc >= 0.90
