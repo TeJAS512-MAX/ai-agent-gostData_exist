@@ -759,6 +759,7 @@ def build_multi_dataset_corpus(
     dataset_dir: str = DATASET_DIR,
     custom_data_paths: Optional[List[str]] = None,
     skip_built_in: bool = False,
+    problem_statement_only: bool = False,
 ) -> Tuple[List[Dict], np.ndarray, np.ndarray]:
     corpus: List[Dict] = []
 
@@ -848,8 +849,12 @@ def build_multi_dataset_corpus(
                 })
 
         # 8. Downloaded External Real-World Problem Datasets (Dataset H)
-        downloaded_items = load_downloaded_problem_datasets()
-        corpus.extend(downloaded_items)
+        if not problem_statement_only:
+            downloaded_items = load_downloaded_problem_datasets()
+            corpus.extend(downloaded_items)
+            logger.info("Loaded %d items from external downloaded datasets", len(downloaded_items))
+        else:
+            logger.info("Problem-Statement-Only Mode: Focusing 100% on official problem statement datasets")
 
         # 9. Full Production Cases (Dataset I - deletion_requests.csv merged with output.csv)
         dr_path = os.path.join(dataset_dir, "deletion_requests.csv")
@@ -1012,7 +1017,7 @@ def build_dual_path_pipeline() -> Pipeline:
 # SPECIALIZED COGNITIVE MODE CLASSIFIER (THE 4 ALGORITHMIC INNOVATIONS)
 # ==============================================================================
 
-def train_cognitive_mode_model(output_path: Optional[str] = None) -> Pipeline:
+def train_cognitive_mode_model(output_path: Optional[str] = None, problem_statement_only: bool = False) -> Pipeline:
     """
     Trains a specialized Multi-Class Cognitive Mode Classifier on the 4 Advanced Algorithmic Innovations:
       Class 0: NOT_APPLICABLE (Non-deletion inquiry or DSAR access)
@@ -1039,9 +1044,10 @@ def train_cognitive_mode_model(output_path: Optional[str] = None) -> Pipeline:
     for item in DATASET_MULTILINGUAL_DELETION:
         mode_samples.append((item["text"], 1))
 
-    # Ingest downloaded problem datasets into cognitive mode training
-    for item in load_downloaded_problem_datasets():
-        mode_samples.append((item["text"], item.get("mode", 0)))
+    if not problem_statement_only:
+        # Ingest downloaded problem datasets into cognitive mode training
+        for item in load_downloaded_problem_datasets():
+            mode_samples.append((item["text"], item.get("mode", 0)))
 
     # Ingest High-Complexity Enterprise Tasks (Dataset J)
     complex_scenarios = [
@@ -1121,15 +1127,22 @@ def train_and_benchmark(
     dataset_dir: str = DATASET_DIR,
     custom_data_paths: Optional[List[str]] = None,
     skip_built_in: bool = False,
+    problem_statement_only: bool = False,
     output_model_path: Optional[str] = None,
     output_report_path: Optional[str] = None
 ) -> Pipeline:
     print("=" * 70)
     print("  NORTHSTAR SHOP: MULTI-DATASET INTENT CLASSIFIER TRAINING")
+    print(f"  MODE: {'OFFICIAL PROBLEM STATEMENT DATASETS ONLY' if problem_statement_only else 'FULL HYBRID REALITY-CORPUS'}")
     print("=" * 70)
 
     t0 = time.time()
-    corpus, X, y = build_multi_dataset_corpus(dataset_dir, custom_data_paths=custom_data_paths, skip_built_in=skip_built_in)
+    corpus, X, y = build_multi_dataset_corpus(
+        dataset_dir,
+        custom_data_paths=custom_data_paths,
+        skip_built_in=skip_built_in,
+        problem_statement_only=problem_statement_only
+    )
 
     n_del = int((y == 1).sum())
     n_non = int((y == 0).sum())
@@ -1295,6 +1308,10 @@ if __name__ == "__main__":
         "--output-report", "-r", default=None,
         help="Custom path to save the generated training report"
     )
+    parser.add_argument(
+        "--problem-statement-only", "-pso", action="store_true",
+        help="Train exclusively on official Problem Statement datasets (dataset/ and hackerrank_repo/dataset/)"
+    )
     args = parser.parse_args()
 
     # 1. Train primary intent ensemble
@@ -1302,10 +1319,11 @@ if __name__ == "__main__":
         dataset_dir=DATASET_DIR,
         custom_data_paths=args.custom_data,
         skip_built_in=args.skip_built_in,
+        problem_statement_only=args.problem_statement_only,
         output_model_path=args.output_model,
         output_report_path=args.output_report
     )
 
     # 2. Train specialized cognitive mode classifier on the 4 algorithmic innovations
-    train_cognitive_mode_model()
+    train_cognitive_mode_model(problem_statement_only=args.problem_statement_only)
 
