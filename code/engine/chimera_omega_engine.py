@@ -261,3 +261,4 @@ class FunctorialLineageAuditor:
     """
     def verify_composite_pipeline(self, f: VerifiedMorphism, g: VerifiedMorphism) -> VerifiedMorphism:
         return f.compose(g)
+

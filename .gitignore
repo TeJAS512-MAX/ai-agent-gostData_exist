@@ -38,7 +38,8 @@ Thumbs.db
 
 # Output cache (keep .gitkeep if needed)
 data/raw/*.tmp
-outputs/*.tmp
+outputs/
+sample_predictions.csv
 
 # Scratch analysis files
 scratch_*.*
