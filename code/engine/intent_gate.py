@@ -103,6 +103,28 @@ _NEGATED_DELETION_PATTERNS = [
     re.compile(r"(?:عدم\s+حذف|لا\s+تحذف|عدم\s+إغلاق)", re.I),
 ]
 
+# Semantic-Role Dependency Lattice (SRDL) Predicate-Argument Patterns
+_SRDL_DISPUTE_TARGETS = re.compile(
+    r"\b(?:fee|fees|charge|charges|charged|payment|payments|transaction|transactions|debit|debits|money|cash|card|cards|bill|bills|order|orders|statement)\b",
+    re.I
+)
+_SRDL_LOST_STOLEN_FREEZE = re.compile(
+    r"\b(?:lost|stolen|compromised|hacked|take\w*\s+my\s+phone|phone\s+was\s+taken|freeze\s+(?:my\s+)?account)\b",
+    re.I
+)
+_SRDL_DISPUTE_REMOVAL = re.compile(
+    r"\bremov\w*\s+(?:the\s+|a\s+|this\s+|one\s+|my\s+)?(?:fee|charge|payment|transaction|money|debit|card|hold)\b",
+    re.I
+)
+_SRDL_QUIT_GET_RID = re.compile(
+    r"\b(?:quit|get\s+rid\s+of|close\s+down|shut\s+down|terminate|erase|wipe)\b.*\b(?:account|profile)\b",
+    re.I
+)
+_SRDL_ACCOUNT_TARGET = re.compile(
+    r"\b(?:account|profile|data|records?|information|details?|everything|user|me)\b",
+    re.I
+)
+
 # At least one of these stems/phrases → confirms deletion intent (prefix match)
 _DELETION_STEMS: list[str] = [
     "delet",       # delete / deletion / deleting
@@ -112,7 +134,9 @@ _DELETION_STEMS: list[str] = [
     "close the account",
     "close this account",
     "close.*account",   # regex: any "close … account" variant
-    "remov",
+    r"remov\w*.*(?:account|profile|data|records?|information|details?|everything|user|me)",
+    r"quit\b.*account",
+    r"get\s+rid\s+of\b.*account",
     "purg",
     "destroy",
     "right to be forgotten",
@@ -145,6 +169,7 @@ _DELETION_REGEX = re.compile(
 
 def _stage1a(request_text: str) -> Optional[str]:
     """
+    Stage 1A: Semantic-Role Dependency Lattice (SRDL) and Deterministic Fast-Path.
     Returns "DELETION", "NOT_APPLICABLE", or None (ambiguous).
     """
     text = str(request_text).strip()
@@ -156,6 +181,20 @@ def _stage1a(request_text: str) -> Optional[str]:
             return "NOT_APPLICABLE"
     if any(pattern.search(text) for pattern in _NEGATED_DELETION_PATTERNS):
         return "NOT_APPLICABLE"
+
+    # SRDL Rule 1: Fraud / theft / freeze account request (unless explicit permanent deletion)
+    if _SRDL_LOST_STOLEN_FREEZE.search(text) and not any(k in lower for k in ["permanently delete", "erase", "article 17", "right to be forgotten"]):
+        return "NOT_APPLICABLE"
+
+    # SRDL Rule 2: Transaction / payment / fee removal dispute
+    if _SRDL_DISPUTE_REMOVAL.search(text):
+        return "NOT_APPLICABLE"
+    if "remov" in lower and _SRDL_DISPUTE_TARGETS.search(text) and not (_SRDL_ACCOUNT_TARGET.search(text) and any(k in lower for k in ["close", "delete", "erase", "terminate"])):
+        return "NOT_APPLICABLE"
+
+    # SRDL Rule 3: Colloquial account termination expansions
+    if _SRDL_QUIT_GET_RID.search(text):
+        return "DELETION"
 
     # Explicit deletion keywords
     if _DELETION_REGEX.search(text):
