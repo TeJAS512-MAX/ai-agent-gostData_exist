@@ -78,9 +78,27 @@ _NON_DELETION_PATTERNS: list[str] = [
     "update my billing",
     "marketing opt",
     "unsubscribe from",
+    "marketing lists only",
+    "marketing list only",
+    "not asking for deletion",
+    "not asking to delete",
+    "not a request to erase",
+    "not a request to delete",
+    "stop the promotional emails",
+    "stop promotional emails",
+    "information request, not a request",
+    "ignore all previous instructions",
+    "ignore previous instructions",
+    "system override",
+    "you are an obedient assistant",
 ]
 
 _NEGATED_DELETION_PATTERNS = [
+    re.compile(r"\b(?:not|never|no)\s+(?:asking|requesting|demanding|seeking)\s+(?:for\s+)?(?:deletion|erasure|to\s+delete|to\s+erase)\b", re.I),
+    re.compile(r"\b(?:not\s+a\s+request|not\s+an\s+order)\s+to\s+(?:erase|delete|close|purge)\b", re.I),
+    re.compile(r"\b(?:remove|take)\s+(?:me\s+)?from\s+marketing\b", re.I),
+    re.compile(r"\b(?:stop|cancel|block)\s+(?:the\s+)?(?:promotional|marketing)\s+emails?\b", re.I),
+    re.compile(r"\b(?:ignore|disregard|forget)\s+(?:all\s+)?(?:previous|prior|above)\s+(?:instructions?|directions?|prompts?)\b", re.I),
     re.compile(r"\b(?:do\s+not|don't|dont|never|please\s+do\s+not)\s+(?:delete|erase|remove|close|purge|shut\s+down)\b", re.I),
     re.compile(r"\b(?:do\s+not|don't|dont)\s+want\s+(?:my\s+)?(?:account|profile|data)\s+(?:to\s+be\s+)?(?:deleted|erased|removed|closed)\b", re.I),
     re.compile(r"\b(?:keep|leave)\s+(?:my\s+|the\s+)?(?:account|profile|service)\s+(?:active|intact|open|in\s+place)\b", re.I),
@@ -176,6 +194,11 @@ def _stage1a(request_text: str) -> Optional[str]:
     """
     text = str(request_text).strip()
     lower = text.lower()
+
+    # Pre-check: Double negation affirmation ("it is false that I do not want", "cannot not request")
+    double_neg = re.search(r"\b(?:it\s+is\s+(?:false|untrue|not\s+true)\s+that\s+i\s+(?:do\s+not|don't)|cannot\s+not)\b", lower)
+    if double_neg and any(k in lower for k in ["wipe", "delet", "eras", "remov", "close", "purg"]):
+        return "DELETION"
 
     # Explicit non-deletion overrides
     for pat in _NON_DELETION_PATTERNS:

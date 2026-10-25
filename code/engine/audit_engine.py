@@ -486,4 +486,7 @@ class AuditEngine:
         for i, s in enumerate(sorted_steps, 1):
             s["step_no"] = i
 
+        if status == "COMPLETE" and len(sorted_steps) == 0:
+            return "NOT_APPLICABLE", []
+
         return status, sorted_steps
