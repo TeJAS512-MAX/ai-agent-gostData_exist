@@ -2510,3 +2510,34 @@ branch=main
 repo_root=C:\Users\sathw\OneDrive\Desktop\HACKERANK
 worktree=main
 parent_agent=none
+
+
+## [2026-10-25T12:35:00.000000+05:30] Aggressive Training with External Datasets and Live Gemini API
+
+User Prompt (verbatim, secrets redacted):
+now do aggrasive training with external datasets
+with api key
+
+Agent Response Summary:
+Executed aggressive multi-dataset training campaign integrating external real-world compliance datasets alongside official problem statement corpora and live Google Gemini API synthesis: (1) Added `--include-external` mode in code/engine/intent_classifier_trainer.py to ingest 3,599 external compliance samples from downloaded_datasets/ (UK GDPR QA, PolyAI Banking77, AndreaSimeri GDPR Articles, sims2k GDPR QA Instruct, CLINC150); (2) Integrated 250 dynamic adversarial red-teaming examples synthesized via live Google Gemini API (gemini-flash-latest); (3) Trained dual-path stacking ensemble on 13,098 total cross-dataset samples across 106 partitions (6,604 Deletion / 6,494 Non-Deletion, balanced at 50.4% / 49.6%), achieving 0.9908 +/- 0.0010 5-fold CV Macro F1, 0.9908 accuracy, and 16/16 (100.0%) adversarial stress-test score; (4) Trained Cognitive Mode Classifier on 8,963 samples, achieving 98.73% fit accuracy and 0.9915 Macro F1; (5) Generated and verified HMAC-SHA256 cryptographic signatures with ModelSecurityGuard; (6) Rebuilt hermetic submission code.zip (5.95 MB, 53 files, zero bytecode, zero datasets); (7) Verified 100.00% golden benchmark accuracy (32/32 cases, 193/193 steps) and 0 contract errors on output.csv (518 cases); and (8) Validated 58/58 unit tests and the master 15-way testing suite.
+
+Actions:
+* Added --include-external flag and data ingestion pipeline in code/engine/intent_classifier_trainer.py
+* Ingested 3,599 external samples from downloaded_datasets/ (UK GDPR QA, Banking77, GDPR Articles, sims2k, CLINC150)
+* Generated and anchored 250 live Gemini API adversarial samples (Dataset N)
+* Executed aggressive multi-core training across 13,098 samples (12 CPU cores)
+* Trained cognitive mode classifier across 8,963 samples (98.73% accuracy)
+* Cryptographically re-signed intent and cognitive mode models with HMAC-SHA256
+* Rebuilt hermetic code.zip (5.95 MB, 53 files, zero bytecode, zero datasets)
+* Validated run_benchmark.py (100.00% across all 6 metrics) and output.csv (518 cases, 0 errors)
+* Ran 58/58 unit tests in code/evaluation
+* Ran master 15-way test suite run_all_project_tests.py
+* Appended turn entry to log.txt with authoritative tool=Antigravity and model=gemini-3.8-flash
+
+Context:
+tool=Antigravity
+model=gemini-3.8-flash
+branch=main
+repo_root=C:\Users\sathw\OneDrive\Desktop\HACKERANK
+worktree=main
+parent_agent=none

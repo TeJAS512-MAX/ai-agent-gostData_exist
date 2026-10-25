@@ -1118,6 +1118,12 @@ def train_cognitive_mode_model(output_path: Optional[str] = None, problem_statem
         for item in load_hackerrank_repo_datasets(hom_dir, source_prefix="Dataset_M_HackerRank_Orchestrate"):
             mode_samples.append((item["text"], item.get("mode", 0)))
 
+    # Ingest Live Gemini API adversarial samples (Dataset N)
+    for item in load_live_api_adversarial_dataset():
+        lbl = item.get("label", 1)
+        mode = 2 if lbl == 1 else 0
+        mode_samples.append((item["text"], mode))
+
     X_mode = np.array([t for t, m in mode_samples])
     y_mode = np.array([m for t, m in mode_samples])
 
@@ -1373,21 +1379,33 @@ if __name__ == "__main__":
         help="Custom path to save the generated training report"
     )
     parser.add_argument(
-        "--problem-statement-only", "-pso", action="store_true", default=True,
+        "--problem-statement-only", "-pso", action="store_true", default=False,
         help="Train exclusively on official Problem Statement datasets (dataset/ and hackerrank_repo/dataset/)"
     )
+    parser.add_argument(
+        "--include-external", "-ext", action="store_true", default=False,
+        help="Include external downloaded datasets (UK GDPR QA, Banking77, CLINC150, GDPR Articles) for aggressive training"
+    )
     args = parser.parse_args()
+
+    # Determine whether external datasets should be included:
+    # If --include-external is passed, problem_statement_only is False.
+    # If --problem-statement-only is passed, it is True.
+    # Default is True unless --include-external is given.
+    pso = False if args.include_external else (args.problem_statement_only or not args.include_external)
+    if args.include_external:
+        pso = False
 
     # 1. Train primary intent ensemble
     trained_pipeline = train_and_benchmark(
         dataset_dir=DATASET_DIR,
         custom_data_paths=args.custom_data,
         skip_built_in=args.skip_built_in,
-        problem_statement_only=args.problem_statement_only,
+        problem_statement_only=pso,
         output_model_path=args.output_model,
         output_report_path=args.output_report
     )
 
     # 2. Train specialized cognitive mode classifier on the 4 algorithmic innovations
-    train_cognitive_mode_model(problem_statement_only=args.problem_statement_only)
+    train_cognitive_mode_model(problem_statement_only=pso)
 
