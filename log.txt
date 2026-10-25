@@ -1290,3 +1290,25 @@ branch=main
 repo_root=C:\Users\sathw\OneDrive\Desktop\HACKERANK
 worktree=main
 parent_agent=none
+
+
+## [2026-10-25T06:16:10.472515+05:30] Detailed F1 Score and Precision-Recall Breakdown Reporting
+
+User Prompt (verbatim, secrets redacted):
+what my f1 score
+
+Agent Response Summary:
+Extracted and delivered the exact empirical F1 scores across all system levels: (1) ML Intent Classifier: 5-Fold Stratified Cross-Validation Macro F1 of 0.9851 (+/- 0.0025), Training Fit Macro F1 of 0.9899 across 9,723 samples (NOT_APPLICABLE F1 = 0.99 with 0.98 precision / 1.00 recall; DELETION F1 = 0.99 with 1.00 precision / 0.98 recall); (2) Cognitive Mode Classifier: 0.9867 Macro F1 across 5,969 samples; (3) Golden Benchmark End-to-End: 1.0000 (100.0%) F1 score on deletion status, phase lifecycle, and exact step-tuple matching (193/193 steps).
+
+Actions:
+* Queried training_report.txt, reality_model_metadata.json, and evaluation_report.md
+* Documented exact per-class precision, recall, and F1 scores
+* Updated log.txt with authoritative tool=Antigravity and model=gemini-3.8-flash
+
+Context:
+tool=Antigravity
+model=gemini-3.8-flash
+branch=main
+repo_root=C:\Users\sathw\OneDrive\Desktop\HACKERANK
+worktree=main
+parent_agent=none
