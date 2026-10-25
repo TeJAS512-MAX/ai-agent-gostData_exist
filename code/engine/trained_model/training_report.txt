@@ -1,45 +1,45 @@
 Northstar Shop — Multi-Dataset Intent Classifier Training Report
 ======================================================================
 
-Total Datasets Included: 79
-Total Cross-Dataset Samples: 11006
-  * Deletions (label=1): 7122
-  * Non-Deletions (label=0): 3884
+Total Datasets Included: 76
+Total Cross-Dataset Samples: 9249
+  * Deletions (label=1): 5589
+  * Non-Deletions (label=0): 3660
 
-5-Fold CV Macro F1: 0.9996 +/- 0.0004
-5-Fold CV Accuracy: 0.9996 +/- 0.0003
+5-Fold CV Macro F1: 0.9991 +/- 0.0006
+5-Fold CV Accuracy: 0.9991 +/- 0.0006
 Training Fit Accuracy: 1.0000
 Training Fit Macro F1: 1.0000
 
 Confusion Matrix (rows=actual, cols=predicted):
   [NOT_APPLICABLE, DELETION]
-[[3884    0]
- [   0 7122]]
+[[3660    0]
+ [   0 5589]]
 
 Classification Report:
                 precision    recall  f1-score   support
 
-NOT_APPLICABLE       1.00      1.00      1.00      3884
-      DELETION       1.00      1.00      1.00      7122
+NOT_APPLICABLE       1.00      1.00      1.00      3660
+      DELETION       1.00      1.00      1.00      5589
 
-      accuracy                           1.00     11006
-     macro avg       1.00      1.00      1.00     11006
-  weighted avg       1.00      1.00      1.00     11006
+      accuracy                           1.00      9249
+     macro avg       1.00      1.00      1.00      9249
+  weighted avg       1.00      1.00      1.00      9249
 
 Stress-Test Adversarial Accuracy: 16/16 (100.0%)
-  [PASS] [      DELETION] p_del=0.933 | Please delete my account and all associated data.
-  [PASS] [      DELETION] p_del=0.559 | I want to erase all my data.
-  [PASS] [      DELETION] p_del=0.920 | Close this account permanently.
-  [PASS] [      DELETION] p_del=0.674 | Ich möchte mein Konto löschen.
-  [PASS] [      DELETION] p_del=0.742 | Je souhaite supprimer mon compte définitivement.
-  [PASS] [      DELETION] p_del=0.925 | Por favor, elimina mi cuenta y todos mis datos personales.
-  [PASS] [      DELETION] p_del=0.846 | アカウントを削除してください。
-  [PASS] [NOT_APPLICABLE] p_del=0.096 | Under GDPR Article 15 I request my data copy.
-  [PASS] [NOT_APPLICABLE] p_del=0.068 | Please keep my account active. Update my address.
-  [PASS] [NOT_APPLICABLE] p_del=0.278 | Please update my billing details only.
-  [PASS] [NOT_APPLICABLE] p_del=0.136 | I considered deleting, but do not close my account.
-  [PASS] [NOT_APPLICABLE] p_del=0.069 | Do not delete my account until my pending shipment arrives.
-  [PASS] [NOT_APPLICABLE] p_del=0.076 | I want to delete only my credit card, keep the profile active.
-  [PASS] [      DELETION] p_del=0.721 | Under GDPR Article 17 please erase all my records.
-  [PASS] [      DELETION] p_del=0.895 | Block all secondary backup restore paths before erasing records.
-  [PASS] [      DELETION] p_del=0.829 | Ensure legal hold records remain intact while caches are purged.
+  [PASS] [      DELETION] p_del=0.923 | Please delete my account and all associated data.
+  [PASS] [      DELETION] p_del=0.629 | I want to erase all my data.
+  [PASS] [      DELETION] p_del=0.922 | Close this account permanently.
+  [PASS] [      DELETION] p_del=0.773 | Ich möchte mein Konto löschen.
+  [PASS] [      DELETION] p_del=0.809 | Je souhaite supprimer mon compte définitivement.
+  [PASS] [      DELETION] p_del=0.909 | Por favor, elimina mi cuenta y todos mis datos personales.
+  [PASS] [      DELETION] p_del=0.835 | アカウントを削除してください。
+  [PASS] [NOT_APPLICABLE] p_del=0.100 | Under GDPR Article 15 I request my data copy.
+  [PASS] [NOT_APPLICABLE] p_del=0.103 | Please keep my account active. Update my address.
+  [PASS] [NOT_APPLICABLE] p_del=0.368 | Please update my billing details only.
+  [PASS] [NOT_APPLICABLE] p_del=0.089 | I considered deleting, but do not close my account.
+  [PASS] [NOT_APPLICABLE] p_del=0.253 | Do not delete my account until my pending shipment arrives.
+  [PASS] [NOT_APPLICABLE] p_del=0.138 | I want to delete only my credit card, keep the profile active.
+  [PASS] [      DELETION] p_del=0.858 | Under GDPR Article 17 please erase all my records.
+  [PASS] [      DELETION] p_del=0.881 | Block all secondary backup restore paths before erasing records.
+  [PASS] [      DELETION] p_del=0.841 | Ensure legal hold records remain intact while caches are purged.

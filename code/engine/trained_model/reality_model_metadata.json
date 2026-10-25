@@ -1,14 +1,14 @@
 {
   "model_name": "RealityEnsembleClassifier",
   "version": "4.5.0-enterprise-aot",
-  "total_training_samples": 11006,
-  "deletion_samples": 7122,
-  "non_deletion_samples": 3884,
-  "cv_5fold_macro_f1": 0.9996,
-  "cv_5fold_accuracy": 0.9996,
+  "total_training_samples": 9249,
+  "deletion_samples": 5589,
+  "non_deletion_samples": 3660,
+  "cv_5fold_macro_f1": 0.9991,
+  "cv_5fold_accuracy": 0.9991,
   "train_macro_f1": 1.0,
   "train_accuracy": 1.0,
-  "partitions_count": 79,
+  "partitions_count": 76,
   "partition_breakdown": {
     "Dataset_A_Official_Samples": 1600,
     "Dataset_B_Multilingual_ar": 30,
@@ -55,7 +55,6 @@
     "Dataset_G_Algorithmic_ReEntrancy_PDF_Invoice": 25,
     "Dataset_G_Algorithmic_ReEntrancy_Screenshot_Feed": 25,
     "Dataset_G_Algorithmic_ReEntrancy_Unstructured_Log": 25,
-    "Dataset_I_Full_518_Production_Requests": 721,
     "Dataset_J_Complex_Enterprise_Adversarial_Prompt_Injection_DSAR": 50,
     "Dataset_J_Complex_Enterprise_Cross_Jurisdiction_Tax_Conflict": 50,
     "Dataset_J_Complex_Enterprise_Multimodal_Identity_Obfuscation": 50,
@@ -82,12 +81,10 @@
     "Dataset_L_HackerRank_Repo_Deletion_Rules": 15,
     "Dataset_L_HackerRank_Repo_Golden_Samples": 800,
     "Dataset_L_HackerRank_Repo_Identity_Audit": 306,
-    "Dataset_L_HackerRank_Repo_Production_Requests": 518,
     "Dataset_L_HackerRank_Repo_System_Activity": 250,
     "Dataset_M_HackerRank_Orchestrate_Deletion_Rules": 15,
     "Dataset_M_HackerRank_Orchestrate_Golden_Samples": 800,
     "Dataset_M_HackerRank_Orchestrate_Identity_Audit": 306,
-    "Dataset_M_HackerRank_Orchestrate_Production_Requests": 518,
     "Dataset_M_HackerRank_Orchestrate_System_Activity": 250
   },
   "pipeline_components": [
@@ -99,10 +96,10 @@
     "CalibratedClassifierCV(SGDClassifier(loss='log_loss', penalty='elasticnet'), cv=3)",
     "VotingClassifier (soft voting with weights [2.5, 2.5, 1.0, 1.5])"
   ],
-  "total_feature_dimensions": 83980,
+  "total_feature_dimensions": 82609,
   "epistemic_uncertainty_thresholds": {
     "entropy_ood_threshold": 0.85,
     "confidence_margin_threshold": 0.3
   },
-  "created_at": "2026-10-25 02:55:02 UTC"
+  "created_at": "2026-10-25 04:47:12 UTC"
 }
