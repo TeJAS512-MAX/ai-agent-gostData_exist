@@ -671,27 +671,7 @@ def load_hackerrank_repo_datasets(repo_dataset_dir: str, source_prefix: str = "D
         except Exception as exc:
             logger.warning("Error reading %s golden samples: %s", source_prefix, exc)
 
-    # 2. Production Requests
-    dr_path = os.path.join(repo_dataset_dir, "deletion_requests.csv")
-    out_path = os.path.join(ROOT, "output.csv")
-    if os.path.exists(dr_path) and os.path.exists(out_path):
-        try:
-            dr = pd.read_csv(dr_path)
-            out = pd.read_csv(out_path)
-            m = dr.merge(out[["case_id", "deletion_status"]], on="case_id")
-            for _, row in m.iterrows():
-                txt = str(row.get("request_text", "")).strip()
-                st = str(row.get("deletion_status", "")).strip()
-                lbl = 0 if st == "NOT_APPLICABLE" else 1
-                items.append({
-                    "text": txt,
-                    "label": lbl,
-                    "mode": 0 if lbl == 0 else 1,
-                    "dataset_source": f"{source_prefix}_Production_Requests",
-                    "case_id": row["case_id"]
-                })
-        except Exception:
-            pass
+    # Note: Production requests without ground truth are excluded to avoid circular learning
 
     # 3. User Identity Audit Logs (Maintenance & Address/Email updates)
     ual_path = os.path.join(repo_dataset_dir, "user_audit_log.csv")
@@ -856,27 +836,7 @@ def build_multi_dataset_corpus(
         else:
             logger.info("Problem-Statement-Only Mode: Focusing 100% on official problem statement datasets")
 
-        # 9. Full Production Cases (Dataset I - deletion_requests.csv merged with output.csv)
-        dr_path = os.path.join(dataset_dir, "deletion_requests.csv")
-        out_path = os.path.join(ROOT, "output.csv")
-        if os.path.exists(dr_path) and os.path.exists(out_path):
-            df_req = pd.read_csv(dr_path)
-            df_out = pd.read_csv(out_path)
-            merged_prod = df_req.merge(df_out[["case_id", "deletion_status"]], on="case_id")
-            for _, row in merged_prod.iterrows():
-                txt = str(row.get("request_text", "")).strip()
-                st = str(row.get("deletion_status", "")).strip()
-                lbl = 0 if st == "NOT_APPLICABLE" else 1
-                reps = 30 if lbl == 0 else 1
-                for _ in range(reps):
-                    corpus.append({
-                        "text": txt,
-                        "label": lbl,
-                        "mode": 0 if lbl == 0 else 1,
-                        "dataset_source": "Dataset_I_Full_518_Production_Requests",
-                        "case_id": row["case_id"]
-                    })
-            logger.info("Loaded %d production cases from Dataset I", len(merged_prod))
+        # Note: Production cases without ground truth are excluded to avoid circular learning
 
         # 10. High-Complexity Enterprise Tasks (Dataset J - 30x anchored)
         DATASET_COMPLEX_ENTERPRISE_TASKS = [
