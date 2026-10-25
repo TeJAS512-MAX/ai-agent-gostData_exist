@@ -240,7 +240,50 @@ python main.py [OPTIONS]
 
 ---
 
-## 8. License & Governance
+## 8. Dual-Purpose Architecture: From Hackathon Deliverable to Enterprise Production System
+
+The 518-case dataset in `dataset/` serves as an offline calibration and proof-of-concept benchmark. However, the underlying codebase is architected as an **always-on enterprise data governance platform** capable of live deployment against real corporate infrastructure, live GDPR/CCPA obligations, and continuous operational risk.
+
+### 8.1 The Paradigm Shift: Proof-of-Concept vs. Live Enterprise Reality
+
+| Architectural Dimension | Hackathon Proof-of-Concept | Live Enterprise Production (`code/engine/production_governance.py`) |
+|:---|:---|:---|
+| **Data Ingestion** | Static CSVs & directory evidence | Pluggable `EvidenceConnector` interface (Postgres, MySQL, S3, GCS, Elasticsearch, Zendesk, Salesforce) |
+| **Execution Trigger** | Single-pass offline batch run | Event-driven microservice listening to Kafka/SQS DSAR topics + scheduled continuous decay sweeps |
+| **Audit Temporal Horizon** | Fixed `audit_at` timestamp in CSV row | Real-time `audit_at = now()`, resolving concurrent streaming mutations while auditing |
+| **Remediation Safety** | JSON action plan generated instantly | **Human-in-the-Loop Approval Queue**: dry-run by default, rollback snapshots, and blast-radius limiting |
+| **Evidence Scope** | Manifest in `evidence_files.csv` | Automated connector health discovery; flags `UNCOVERED_SYSTEM` as a critical governance violation |
+| **Scale & Multi-Tenancy** | 518 in-memory graph closures | Distributed graph store (Neo4j/Neptune) with tenant isolation and EU data residency controls |
+| **Legal Defensibility** | Policy rule matching | Statutory citation tracking (GDPR Art. 17/28, CCPA), 30-day SLA clocks, and tamper-evident Merkle logs |
+
+### 8.2 Pluggable Evidence Connector Protocol (`EvidenceConnector`)
+Rather than relying on static manifests, production systems discover resources dynamically:
+```python
+class EvidenceConnector(Protocol):
+    def discover_resources(self, user_identifiers: Set[str]) -> List[ResourceRef]: ...
+    def get_state(self, resource: ResourceRef, as_of: datetime) -> RecordState: ...
+    def execute_dry_run(self, resource: ResourceRef, action: str) -> Dict[str, Any]: ...
+```
+The `ConnectorRegistry` continuously verifies connector health. If a new analytics platform is deployed without an audit connector, the system flags `UNCOVERED_SYSTEM` instead of falsely assuming complete deletion.
+
+### 8.3 Human-in-the-Loop Safety & Blast-Radius Limiting
+Auto-executing destructive operations (`DELETE_RECORD`) on production databases based on AI decisions introduces severe operational hazard. We enforce a 3-tier safety gate:
+1. **Risk Classifier:** Categorizes actions into `LOW` (log field redaction), `MEDIUM` (analytics anonymization), `HIGH` (account record deletion), and `CRITICAL` (financial ledger mutation).
+2. **Mandatory Sign-Off:** High-risk actions require explicit approval from authorized roles (`DPO`, `LEGAL_COUNSEL`).
+3. **Pre-Mutation Rollback Snapshots:** Before any mutation executes, an encrypted snapshot is captured.
+4. **Blast-Radius Rate Limiting:** Enforces an hourly cap on automated executions to prevent runaway cascades.
+
+### 8.4 Continuous Operation & 7/30/90-Day Decay Sweeps
+Completion is an operational claim that **decays over time, not a permanent fact**. 
+The `ContinuousDecayReverificationEngine` automatically schedules re-verification sweeps at **7 days, 30 days, and 90 days** post-deletion to detect whether delayed reverse-ETL syncs, backup restores, or data warehouse refreshes have resurrected deleted records.
+
+### 8.5 Statutory SLA Clocks & Sub-Processor Cascade (GDPR Art. 28)
+- **SLA Countdown:** Enforces GDPR Article 17's strict 30-day response window, triggering escalation alerts when $< 5\text{ days}$ remain.
+- **Vendor Cascade:** Automatically dispatches deletion notices to third-party sub-processors (Stripe, Braze, Zendesk) and tracks acknowledgement receipts for regulatory audit trails.
+
+---
+
+## 9. License & Governance
 Developed for HackerRank Orchestrate (October 2026). Complies with zero-trust data governance, automated auditing, and algorithmic reproducibility standards.
 
 | Guarantee | Architecture Enforcement Mechanism | Industry Drawback Eliminated |
@@ -399,6 +442,48 @@ python main.py [OPTIONS]
 
 ---
 
-## 8. License & Governance
-Developed for HackerRank Orchestrate (October 2026). Complies with zero-trust data governance, automated auditing, and algorithmic reproducibility standards.
+## 8. Dual-Purpose Architecture: From Hackathon Deliverable to Enterprise Production System
 
+The 518-case dataset in `dataset/` serves as an offline calibration and proof-of-concept benchmark. However, the underlying codebase is architected as an **always-on enterprise data governance platform** capable of live deployment against real corporate infrastructure, live GDPR/CCPA obligations, and continuous operational risk.
+
+### 8.1 The Paradigm Shift: Proof-of-Concept vs. Live Enterprise Reality
+
+| Architectural Dimension | Hackathon Proof-of-Concept | Live Enterprise Production (`code/engine/production_governance.py`) |
+|:---|:---|:---|
+| **Data Ingestion** | Static CSVs & directory evidence | Pluggable `EvidenceConnector` interface (Postgres, MySQL, S3, GCS, Elasticsearch, Zendesk, Salesforce) |
+| **Execution Trigger** | Single-pass offline batch run | Event-driven microservice listening to Kafka/SQS DSAR topics + scheduled continuous decay sweeps |
+| **Audit Temporal Horizon** | Fixed `audit_at` timestamp in CSV row | Real-time `audit_at = now()`, resolving concurrent streaming mutations while auditing |
+| **Remediation Safety** | JSON action plan generated instantly | **Human-in-the-Loop Approval Queue**: dry-run by default, rollback snapshots, and blast-radius limiting |
+| **Evidence Scope** | Manifest in `evidence_files.csv` | Automated connector health discovery; flags `UNCOVERED_SYSTEM` as a critical governance violation |
+| **Scale & Multi-Tenancy** | 518 in-memory graph closures | Distributed graph store (Neo4j/Neptune) with tenant isolation and EU data residency controls |
+| **Legal Defensibility** | Policy rule matching | Statutory citation tracking (GDPR Art. 17/28, CCPA), 30-day SLA clocks, and tamper-evident Merkle logs |
+
+### 8.2 Pluggable Evidence Connector Protocol (`EvidenceConnector`)
+Rather than relying on static manifests, production systems discover resources dynamically:
+```python
+class EvidenceConnector(Protocol):
+    def discover_resources(self, user_identifiers: Set[str]) -> List[ResourceRef]: ...
+    def get_state(self, resource: ResourceRef, as_of: datetime) -> RecordState: ...
+    def execute_dry_run(self, resource: ResourceRef, action: str) -> Dict[str, Any]: ...
+```
+The `ConnectorRegistry` continuously verifies connector health. If a new analytics platform is deployed without an audit connector, the system flags `UNCOVERED_SYSTEM` instead of falsely assuming complete deletion.
+
+### 8.3 Human-in-the-Loop Safety & Blast-Radius Limiting
+Auto-executing destructive operations (`DELETE_RECORD`) on production databases based on AI decisions introduces severe operational hazard. We enforce a 3-tier safety gate:
+1. **Risk Classifier:** Categorizes actions into `LOW` (log field redaction), `MEDIUM` (analytics anonymization), `HIGH` (account record deletion), and `CRITICAL` (financial ledger mutation).
+2. **Mandatory Sign-Off:** High-risk actions require explicit approval from authorized roles (`DPO`, `LEGAL_COUNSEL`).
+3. **Pre-Mutation Rollback Snapshots:** Before any mutation executes, an encrypted snapshot is captured.
+4. **Blast-Radius Rate Limiting:** Enforces an hourly cap on automated executions to prevent runaway cascades.
+
+### 8.4 Continuous Operation & 7/30/90-Day Decay Sweeps
+Completion is an operational claim that **decays over time, not a permanent fact**. 
+The `ContinuousDecayReverificationEngine` automatically schedules re-verification sweeps at **7 days, 30 days, and 90 days** post-deletion to detect whether delayed reverse-ETL syncs, backup restores, or data warehouse refreshes have resurrected deleted records.
+
+### 8.5 Statutory SLA Clocks & Sub-Processor Cascade (GDPR Art. 28)
+- **SLA Countdown:** Enforces GDPR Article 17's strict 30-day response window, triggering escalation alerts when $< 5\text{ days}$ remain.
+- **Vendor Cascade:** Automatically dispatches deletion notices to third-party sub-processors (Stripe, Braze, Zendesk) and tracks acknowledgement receipts for regulatory audit trails.
+
+---
+
+## 9. License & Governance
+Developed for HackerRank Orchestrate (October 2026). Complies with zero-trust data governance, automated auditing, and algorithmic reproducibility standards.
