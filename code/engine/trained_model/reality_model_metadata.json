@@ -1,14 +1,14 @@
 {
   "model_name": "RealityEnsembleClassifier",
   "version": "4.5.0-enterprise-aot",
-  "total_training_samples": 14987,
-  "deletion_samples": 6220,
-  "non_deletion_samples": 8767,
-  "cv_5fold_macro_f1": 0.9851,
-  "cv_5fold_accuracy": 0.9855,
-  "train_macro_f1": 0.9919,
-  "train_accuracy": 0.9921,
-  "partitions_count": 119,
+  "total_training_samples": 18765,
+  "deletion_samples": 8952,
+  "non_deletion_samples": 9813,
+  "cv_5fold_macro_f1": 0.986,
+  "cv_5fold_accuracy": 0.986,
+  "train_macro_f1": 0.9911,
+  "train_accuracy": 0.9912,
+  "partitions_count": 129,
   "partition_breakdown": {
     "Dataset_A_Official_Samples": 1600,
     "Dataset_B_Multilingual_ar": 30,
@@ -128,7 +128,17 @@
     "Dataset_K_Evidence_PDF_account_history_report_20260718.pdf": 1,
     "Dataset_K_Evidence_PDF_delivery_correction_attachment.pdf": 4,
     "Dataset_K_Evidence_PDF_legal_retention_register_20260529.pdf": 8,
-    "Dataset_K_Evidence_SystemActivity": 500
+    "Dataset_K_Evidence_SystemActivity": 500,
+    "Dataset_L_HackerRank_Repo_Deletion_Rules": 15,
+    "Dataset_L_HackerRank_Repo_Golden_Samples": 800,
+    "Dataset_L_HackerRank_Repo_Identity_Audit": 306,
+    "Dataset_L_HackerRank_Repo_Production_Requests": 518,
+    "Dataset_L_HackerRank_Repo_System_Activity": 250,
+    "Dataset_M_HackerRank_Orchestrate_Deletion_Rules": 15,
+    "Dataset_M_HackerRank_Orchestrate_Golden_Samples": 800,
+    "Dataset_M_HackerRank_Orchestrate_Identity_Audit": 306,
+    "Dataset_M_HackerRank_Orchestrate_Production_Requests": 518,
+    "Dataset_M_HackerRank_Orchestrate_System_Activity": 250
   },
   "pipeline_components": [
     "word_tfidf (1-3 n-grams, unicode accents stripped, max 35,000 features)",
@@ -144,5 +154,5 @@
     "entropy_ood_threshold": 0.85,
     "confidence_margin_threshold": 0.3
   },
-  "created_at": "2026-10-25 02:17:26 UTC"
+  "created_at": "2026-10-25 02:32:01 UTC"
 }

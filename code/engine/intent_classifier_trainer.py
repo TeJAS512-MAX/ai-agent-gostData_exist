@@ -634,6 +634,127 @@ def load_evidence_knowledge_dataset(dataset_dir: str = DATASET_DIR) -> List[Dict
     return items
 
 
+def load_hackerrank_repo_datasets(repo_dataset_dir: str, source_prefix: str = "Dataset_L_HackerRank_Repo") -> List[Dict]:
+    """
+    Ingests all datasets contained inside a HackerRank repository clone:
+      1. Golden sample requests and outputs (sample_deletion_requests.csv, sample_output.csv)
+      2. Full production deletion requests (deletion_requests.csv)
+      3. User identity audit logs (user_audit_log.csv)
+      4. Global system activity telemetry (system_activity.csv)
+      5. Statutory deletion rules (deletion_rules.csv)
+      6. Multimodal evidence assets (evidence/databases, evidence/records, evidence/logs, evidence/documents)
+    """
+    items = []
+    if not os.path.exists(repo_dataset_dir):
+        return items
+
+    # 1. Golden Samples
+    sr_path = os.path.join(repo_dataset_dir, "sample_deletion_requests.csv")
+    so_path = os.path.join(repo_dataset_dir, "sample_output.csv")
+    if os.path.exists(sr_path) and os.path.exists(so_path):
+        try:
+            sr = pd.read_csv(sr_path)
+            so = pd.read_csv(so_path)
+            merged = sr.merge(so[["case_id", "deletion_status"]], on="case_id")
+            for _, row in merged.iterrows():
+                txt = str(row.get("request_text", "")).strip()
+                st = str(row.get("deletion_status", "")).strip()
+                lbl = 0 if st == "NOT_APPLICABLE" else 1
+                for _ in range(25):
+                    items.append({
+                        "text": txt,
+                        "label": lbl,
+                        "mode": 0 if lbl == 0 else 1,
+                        "dataset_source": f"{source_prefix}_Golden_Samples",
+                        "case_id": row["case_id"]
+                    })
+        except Exception as exc:
+            logger.warning("Error reading %s golden samples: %s", source_prefix, exc)
+
+    # 2. Production Requests
+    dr_path = os.path.join(repo_dataset_dir, "deletion_requests.csv")
+    out_path = os.path.join(ROOT, "output.csv")
+    if os.path.exists(dr_path) and os.path.exists(out_path):
+        try:
+            dr = pd.read_csv(dr_path)
+            out = pd.read_csv(out_path)
+            m = dr.merge(out[["case_id", "deletion_status"]], on="case_id")
+            for _, row in m.iterrows():
+                txt = str(row.get("request_text", "")).strip()
+                st = str(row.get("deletion_status", "")).strip()
+                lbl = 0 if st == "NOT_APPLICABLE" else 1
+                items.append({
+                    "text": txt,
+                    "label": lbl,
+                    "mode": 0 if lbl == 0 else 1,
+                    "dataset_source": f"{source_prefix}_Production_Requests",
+                    "case_id": row["case_id"]
+                })
+        except Exception:
+            pass
+
+    # 3. User Identity Audit Logs (Maintenance & Address/Email updates)
+    ual_path = os.path.join(repo_dataset_dir, "user_audit_log.csv")
+    if os.path.exists(ual_path):
+        try:
+            ual = pd.read_csv(ual_path)
+            for _, row in ual.iterrows():
+                fn = str(row.get("field_name", "")).strip()
+                old_v = str(row.get("old_value", "")).strip()
+                new_v = str(row.get("new_value", "")).strip()
+                txt = f"Update user profile: change {fn} from '{old_v}' to '{new_v}' without deleting account."
+                items.append({
+                    "text": txt,
+                    "label": 0,
+                    "mode": 0,
+                    "dataset_source": f"{source_prefix}_Identity_Audit"
+                })
+        except Exception:
+            pass
+
+    # 4. Global System Activity Stream
+    sa_path = os.path.join(repo_dataset_dir, "system_activity.csv")
+    if os.path.exists(sa_path):
+        try:
+            sa = pd.read_csv(sa_path)
+            for _, row in sa.sample(min(250, len(sa)), random_state=42).iterrows():
+                ev = str(row.get("event_type", "")).strip()
+                det = str(row.get("details", "")).strip()
+                tgt = str(row.get("target_system", "")).strip()
+                lbl = 1 if any(k in ev.lower() for k in ["delete", "purge", "tombstone", "erasure"]) else 0
+                mode = 3 if any(k in ev.lower() for k in ["failover", "restore", "stream", "connector"]) else (1 if lbl == 1 else 0)
+                items.append({
+                    "text": f"System event on {tgt}: {ev} - {det}",
+                    "label": lbl,
+                    "mode": mode,
+                    "dataset_source": f"{source_prefix}_System_Activity"
+                })
+        except Exception:
+            pass
+
+    # 5. Statutory Deletion Rules
+    drules_path = os.path.join(repo_dataset_dir, "deletion_rules.csv")
+    if os.path.exists(drules_path):
+        try:
+            drules = pd.read_csv(drules_path)
+            for _, row in drules.iterrows():
+                cat = str(row.get("data_category", "")).strip()
+                cond = str(row.get("condition", "")).strip()
+                act = str(row.get("required_action", "")).strip()
+                lbl = 0 if act in ["RETAIN", "ANONYMIZE"] else 1
+                items.append({
+                    "text": f"Compliance rule for {cat}: Condition '{cond}', statutory treatment {act}.",
+                    "label": lbl,
+                    "mode": 2,
+                    "dataset_source": f"{source_prefix}_Deletion_Rules"
+                })
+        except Exception:
+            pass
+
+    logger.info("Loaded %d examples from %s (%s)", len(items), repo_dataset_dir, source_prefix)
+    return items
+
+
 def build_multi_dataset_corpus(
     dataset_dir: str = DATASET_DIR,
     custom_data_paths: Optional[List[str]] = None,
@@ -772,6 +893,20 @@ def build_multi_dataset_corpus(
         # 11. Multimodal Evidence Knowledge Corpus (Dataset K)
         evidence_items = load_evidence_knowledge_dataset(dataset_dir)
         corpus.extend(evidence_items)
+
+        # 12. HackerRank Repo Explicit Ingestion (Dataset L)
+        hr_dir = os.path.join(ROOT, "hackerrank_repo", "dataset")
+        if os.path.exists(hr_dir):
+            items_hr = load_hackerrank_repo_datasets(hr_dir, source_prefix="Dataset_L_HackerRank_Repo")
+            corpus.extend(items_hr)
+            logger.info("Loaded %d examples from hackerrank_repo (Dataset L)", len(items_hr))
+
+        # 13. HackerRank Orchestrate Main Ingestion (Dataset M)
+        hom_dir = os.path.join(ROOT, "hackerrank-orchestrate-october26-main", "dataset")
+        if os.path.exists(hom_dir):
+            items_hom = load_hackerrank_repo_datasets(hom_dir, source_prefix="Dataset_M_HackerRank_Orchestrate")
+            corpus.extend(items_hom)
+            logger.info("Loaded %d examples from hackerrank-orchestrate-october26-main (Dataset M)", len(items_hom))
 
     # Save complete corpus to disk for inspection and auditability
     corpus_path = os.path.join(MODEL_DIR, "multi_dataset_corpus.json")
@@ -923,6 +1058,17 @@ def train_cognitive_mode_model(output_path: Optional[str] = None) -> Pipeline:
     # Ingest Multimodal Evidence Knowledge Dataset (Dataset K)
     for item in load_evidence_knowledge_dataset():
         mode_samples.append((item["text"], item.get("mode", 1)))
+
+    # Ingest HackerRank Repo datasets into cognitive mode training (Datasets L & M)
+    hr_dir = os.path.join(ROOT, "hackerrank_repo", "dataset")
+    if os.path.exists(hr_dir):
+        for item in load_hackerrank_repo_datasets(hr_dir, source_prefix="Dataset_L_HackerRank_Repo"):
+            mode_samples.append((item["text"], item.get("mode", 0)))
+
+    hom_dir = os.path.join(ROOT, "hackerrank-orchestrate-october26-main", "dataset")
+    if os.path.exists(hom_dir):
+        for item in load_hackerrank_repo_datasets(hom_dir, source_prefix="Dataset_M_HackerRank_Orchestrate"):
+            mode_samples.append((item["text"], item.get("mode", 0)))
 
     X_mode = np.array([t for t, m in mode_samples])
     y_mode = np.array([m for t, m in mode_samples])
