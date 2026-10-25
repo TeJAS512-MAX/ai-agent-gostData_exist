@@ -759,7 +759,7 @@ def build_multi_dataset_corpus(
     dataset_dir: str = DATASET_DIR,
     custom_data_paths: Optional[List[str]] = None,
     skip_built_in: bool = False,
-    problem_statement_only: bool = False,
+    problem_statement_only: bool = True,
 ) -> Tuple[List[Dict], np.ndarray, np.ndarray]:
     corpus: List[Dict] = []
 
@@ -1017,7 +1017,7 @@ def build_dual_path_pipeline() -> Pipeline:
 # SPECIALIZED COGNITIVE MODE CLASSIFIER (THE 4 ALGORITHMIC INNOVATIONS)
 # ==============================================================================
 
-def train_cognitive_mode_model(output_path: Optional[str] = None, problem_statement_only: bool = False) -> Pipeline:
+def train_cognitive_mode_model(output_path: Optional[str] = None, problem_statement_only: bool = True) -> Pipeline:
     """
     Trains a specialized Multi-Class Cognitive Mode Classifier on the 4 Advanced Algorithmic Innovations:
       Class 0: NOT_APPLICABLE (Non-deletion inquiry or DSAR access)
@@ -1127,7 +1127,7 @@ def train_and_benchmark(
     dataset_dir: str = DATASET_DIR,
     custom_data_paths: Optional[List[str]] = None,
     skip_built_in: bool = False,
-    problem_statement_only: bool = False,
+    problem_statement_only: bool = True,
     output_model_path: Optional[str] = None,
     output_report_path: Optional[str] = None
 ) -> Pipeline:
@@ -1309,7 +1309,7 @@ if __name__ == "__main__":
         help="Custom path to save the generated training report"
     )
     parser.add_argument(
-        "--problem-statement-only", "-pso", action="store_true",
+        "--problem-statement-only", "-pso", action="store_true", default=True,
         help="Train exclusively on official Problem Statement datasets (dataset/ and hackerrank_repo/dataset/)"
     )
     args = parser.parse_args()
