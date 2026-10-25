@@ -1399,3 +1399,26 @@ branch=main
 repo_root=C:\Users\sathw\OneDrive\Desktop\HACKERANK
 worktree=main
 parent_agent=none
+
+
+## [2026-10-25T06:40:08.283096+05:30] External Web Dataset Benchmarking (PolyAI & CLINC150 Held-Out Sets)
+
+User Prompt (verbatim, secrets redacted):
+take a new datasets from internet with similar datasets the test with new result
+
+Agent Response Summary:
+Downloaded completely unseen held-out test datasets directly from the internet (PolyAI Banking77 official test.csv with 3,080 samples from GitHub, and CLINC150 out-of-domain test split with 1,000 queries). Evaluated the agent's IntentGate offline across both datasets: (1) PolyAI Banking77 (3,080 unseen customer queries): Achieved 0.9961 (99.61%) accuracy, 0.9292 Macro F1, 1.00 Non-Deletion Recall (3,031/3,040), 0.93 Deletion Recall (37/40), and 7.62 ms/query latency; (2) CLINC150 Out-of-Domain (1,000 queries): Achieved 99.80% (998/1,000) non-deletion rejection accuracy in 6.26 ms/query.
+
+Actions:
+* Fetched 3,080 unseen test queries from PolyAI Banking77 GitHub repository
+* Fetched 1,000 unseen test queries from CLINC150 GitHub repository
+* Evaluated offline IntentGate and compiled full precision, recall, F1, and confusion matrices
+* Updated log.txt with authoritative tool=Antigravity and model=gemini-3.8-flash
+
+Context:
+tool=Antigravity
+model=gemini-3.8-flash
+branch=main
+repo_root=C:\Users\sathw\OneDrive\Desktop\HACKERANK
+worktree=main
+parent_agent=none
