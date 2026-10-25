@@ -337,3 +337,34 @@ To extend the formal verification pipeline into SMT satisfiability, temporal log
 ### 7. Program Synthesis for Remediation (CEGIS Loop)
 - Deploys Counterexample-Guided Inductive Synthesis (CEGIS).
 - Proposes candidate remediation plans and iteratively queries the SMT solver with counterexamples until a certified minimal-and-sufficient remediation sequence is synthesized.
+
+
+---
+
+## 12. Project CHIMERA-Ω: Six Formal Frontiers for Deletion Auditing
+
+To advance the state of deletion auditing with concurrency theory, automata learning, decision theory, cryptography, topology, and category theory, the system integrates **Project CHIMERA-Ω** (`code/engine/chimera_omega_engine.py`):
+
+### 1. Petri Net Concurrency Model (Race-Condition Analysis)
+- Models the asynchronous execution of `DELETE` and `SYNC` processes as a Place/Transition Petri Net.
+- Employs Karp-Miller reachability analysis to discover unsafe markings where $M(\text{deleted}) \ge 1 \land M(\text{tainted}) \ge 1$, proving structural race conditions in system architecture independent of observed log timestamps.
+
+### 2. Active Automata Learning (Angluin's L* Algorithm)
+- Reverse-engineers undocumented backend state transitions by probing sandboxed replicas with membership and equivalence queries.
+- Learns minimal DFAs discovering hidden transition bugs (e.g., `SYNC` silently transitioning `soft_deleted` records back to `tainted`), converting black-box behaviors into permanent white-box audit rules.
+
+### 3. POMDP Adaptive Evidence-Gathering Policy
+- Formulates multi-source evidence collection as a Partially Observable Markov Decision Process.
+- Computes the Expected Value of Information ($\text{EVOI}(a) = \mathbb{E}[\Delta H] - \text{cost}(a)$), prioritizing high-yield, low-cost evidence queries (e.g. fast SQL scans) over expensive operations while penalizing false-complete verdicts.
+
+### 4. Secure Multiparty Computation (Private Set Intersection)
+- Replaces raw PII inspection with cryptographic Private Set Intersection (PSI) cardinality checks.
+- Verifies deletion completeness without the audit agent ever receiving or storing plaintext PII tokens, eliminating secondary auditor data leakage.
+
+### 5. Topological Data Analysis (Evidence Manifold Holes)
+- Constructs a 1-simplicial complex over evidence coverage co-occurrences.
+- Computes 1D Betti numbers ($H_1$ cycles) to detect topological coverage holes—regions where data categories are never co-evidenced anywhere in the corpus.
+
+### 6. Category-Theoretic Composable Audits (Functorial Lineage)
+- Defines a category $\mathcal{D}$ of Data States and Verified Morphisms.
+- The Functorial composition theorem guarantees that for pipelines $f: \text{TAINTED} \to \text{CLEAN}$ and $g: \text{CLEAN} \to \text{CLEAN}$, the composite $g \circ f$ is verified automatically, enabling $O(1)$ proof reuse across identical distributed topologies.
