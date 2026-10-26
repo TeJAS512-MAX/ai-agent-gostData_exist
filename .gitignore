@@ -56,3 +56,7 @@ downloaded_datasets/
 *.db
 *.db-wal
 *.db-shm
+
+# Agent trace archive (local upload deliverable)
+agent-trace.zip
+agent-trace/
